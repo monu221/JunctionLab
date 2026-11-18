@@ -33,6 +33,22 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 
 **All-way stop.** Basic model using SUMO's `allway_stop` junction type.
 
+**Defaults.** These are used when the text does not state a value, and the form marks them as assumed:
+
+| Item | Default |
+| --- | --- |
+| Speed limit | 50 km/h (German urban default) |
+| Approach length | 300 m |
+| Lanes per approach | 2: left + through, and through + right |
+| Heavy vehicle share | 5% |
+| Bus demand | 0 buses/h |
+| Cycle length | 90 s |
+| Minimum green | 5 s |
+| Intergreen | 3 s amber + 2 s all-red |
+| Green splits | Webster, from critical flow ratios |
+| 4-arm phase plan | 2-phase |
+| Major road (priority rule) | north–south |
+
 Anything the text does not state gets a default from `config.yaml`, and the form highlights assumed fields so the user can check them. The form edits the scenario only, never the config. If the text cannot be interpreted, the app asks the user to rephrase instead of guessing.
 
 ## 2. Scenario to simulation
@@ -59,13 +75,14 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
   These values were read through TraCI from the pip `eclipse-sumo` 1.28.0 package. Re-check them when the SUMO version changes.
 
+- **Step length.** 1.0 s, the SUMO default. If the Webster check shows problems that a finer step would fix, they are reported before anything is changed.
 - **Timing.** The run has three stages:
   1. A 10-minute warm-up.
   2. A 60-minute measurement period.
   3. A run-out of up to 15 minutes, so that measured vehicles can leave.
 
   Only vehicles that depart during the measurement period are counted, selected by depart time. Measured vehicles still in the network at the end of the run-out are reported as unfinished.
-- **No teleports.** Teleporting is disabled (`--time-to-teleport -1`). Every run stops at the hard time cap above. If vehicles stop moving in the junction area for a long time, the run reports a gridlock warning instead of silently removing them.
+- **No teleports.** Teleporting is disabled (`--time-to-teleport -1`). Every run stops at the hard time cap above. If any vehicle has been stopped for longer than 300 s (default), the run reports a gridlock warning instead of silently removing the vehicle.
 - **Spill-back warning.** A warning is raised when the maximum queue on an approach reaches 80% of its length.
 
 ## 3. What is measured
@@ -92,7 +109,7 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 An approach is graded F regardless of delay when it is overloaded:
 
 - **Signal approaches:** v/c > 1, with capacity calculated from the measured saturation flow (section 4) × effective green ratio.
-- **Priority and all-way-stop approaches:** throughput is clearly below demand (threshold in config), or the insertion backlog keeps growing during the measurement period.
+- **Priority and all-way-stop approaches:** throughput is below 95% of demand (default), or the insertion backlog keeps growing during the measurement period.
 
 German practice uses the HBS (Handbuch für die Bemessung von Straßenverkehrsanlagen), which also grades A to F with its own thresholds. It is deferred: check its thresholds against the current HBS edition before adding them.
 

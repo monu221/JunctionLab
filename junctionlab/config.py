@@ -22,6 +22,7 @@ class _Frozen(BaseModel):
 class Geometry(_Frozen):
     approach_length_m: float = Field(gt=0)
     queue_warning_share: float = Field(gt=0, le=1)
+    speed_limit_kmh: float = Field(gt=0)
 
 
 class Simulation(_Frozen):
@@ -30,6 +31,8 @@ class Simulation(_Frozen):
     measurement_s: int = Field(gt=0)
     runout_max_s: int = Field(ge=0)
     time_to_teleport_s: int
+    step_length_s: float = Field(gt=0)
+    gridlock_stop_s: float = Field(gt=0)
 
     @property
     def end_s(self) -> int:
@@ -49,16 +52,31 @@ class Vehicles(_Frozen):
     bus_demand_default_bph: float = Field(ge=0)
 
 
+Movement = Literal["left", "through", "right"]
+
+
+class ScenarioDefaults(_Frozen):
+    lanes: tuple[tuple[Movement, ...], ...] = Field(min_length=1, max_length=4)
+    heavy_vehicle_share_pct: float = Field(ge=0, le=30)
+
+
 class Control(_Frozen):
     major_road_default: Literal["north-south", "east-west"]
     four_arm_phase_plan_default: Literal["two_phase", "four_phase_split"]
     amber_s: float = Field(ge=0)
     all_red_s: float = Field(ge=0)
+    cycle_default_s: float = Field(gt=0)
+    min_green_s: float = Field(gt=0)
+
+    @property
+    def intergreen_s(self) -> float:
+        return self.amber_s + self.all_red_s
 
 
 class Los(_Frozen):
     signalised: dict[str, float]
     unsignalised: dict[str, float]
+    overload_throughput_share: float = Field(gt=0, le=1)
 
     @field_validator("signalised", "unsignalised")
     @classmethod
@@ -90,6 +108,7 @@ class Config(_Frozen):
     simulation: Simulation
     driver: Driver
     vehicles: Vehicles
+    scenario_defaults: ScenarioDefaults
     control: Control
     los: Los
     webster: Webster

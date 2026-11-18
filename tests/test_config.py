@@ -19,6 +19,13 @@ def test_repo_config_loads_with_decided_values():
     assert cfg.los.signalised["E"] == 80
     assert cfg.los.unsignalised["E"] == 50
     assert cfg.llm.model == "claude-haiku-5-5"
+    assert cfg.geometry.speed_limit_kmh == 50
+    assert cfg.simulation.step_length_s == 1.0
+    assert cfg.simulation.gridlock_stop_s == 300
+    assert (cfg.control.cycle_default_s, cfg.control.min_green_s) == (90, 5)
+    assert cfg.scenario_defaults.lanes == (("left", "through"), ("through", "right"))
+    assert cfg.scenario_defaults.heavy_vehicle_share_pct == 5
+    assert cfg.los.overload_throughput_share == 0.95
 
 
 def _write(tmp_path: Path, mutate) -> Path:

@@ -5,6 +5,7 @@
 geometry:
   approach_length_m: 300        # every lane runs the full length; exit legs mirror the inbound lane count
   queue_warning_share: 0.8      # warn when an approach's max queue reaches this share of its length
+  speed_limit_kmh: 50           # German urban default
 
 simulation:
   seeds: [1, 2, 3, 4, 5]
@@ -12,6 +13,8 @@ simulation:
   measurement_s: 3600           # vehicles departing in this window are measured
   runout_max_s: 900             # extra time so measured vehicles can leave; hard time cap after this
   time_to_teleport_s: -1        # teleports disabled
+  step_length_s: 1.0            # SUMO default; report Webster issues before changing it
+  gridlock_stop_s: 300          # warn when any vehicle has been stopped longer than this
 
 driver:
   car_follow_model: Krauss
@@ -23,16 +26,25 @@ vehicles:
   bus_vclass: bus
   bus_demand_default_bph: 0
 
+scenario_defaults:
+  # Lane use per approach, listed from the leftmost lane to the rightmost.
+  lanes: [[left, through], [through, right]]
+  heavy_vehicle_share_pct: 5
+
 control:
   major_road_default: north-south   # T-junction: the stem is always minor
   four_arm_phase_plan_default: two_phase   # alternative: four_phase_split
   amber_s: 3
   all_red_s: 2
+  cycle_default_s: 90
+  min_green_s: 5
 
 los:
   # HCM average delay thresholds (s/veh): upper bounds for A..E; above the last one is F.
   signalised: {A: 10, B: 20, C: 35, D: 55, E: 80}
   unsignalised: {A: 10, B: 15, C: 25, D: 35, E: 50}
+  # Unsignalised approaches: grade F when throughput < this share of demand.
+  overload_throughput_share: 0.95
 
 webster:
   x_tested: [0.5, 0.7, 0.85]
