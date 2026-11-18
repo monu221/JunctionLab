@@ -115,7 +115,7 @@ class FixedTimeSignal(_Strict):
     phase_plan: PhasePlan
     green_s: tuple[float, ...] | None = Field(
         default=None,
-        description="Green time per phase in phase order; None = derive with Webster at run time.",
+        description="Green time per phase in phase order. Filled with Webster splits if not given.",
     )
 
 
@@ -235,7 +235,10 @@ class Scenario(_Strict):
             for a in self.assumed
             if not any(a == p or a.startswith(p + ".") or p.startswith(a + ".") for p in updates)
         ]
-        return Scenario.model_validate(data, context={"config": config or get_config()})
+        cfg = config or get_config()
+        if "control.green_s" in data["assumed"]:
+            data["control"]["green_s"] = None  # re-derived below from the edited values
+        return _validate_with_greens(data, cfg)
 
 
 # --------------------------------------------------------------------------- draft
@@ -369,7 +372,7 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
             control["phase_plan"] = pick(
                 c.phase_plan, cfg.control.four_arm_phase_plan_default, "control.phase_plan"
             )
-        # None means: derive with Webster from critical flow ratios when the run is built.
+        # None is filled with Webster splits from critical flow ratios after validation.
         control["green_s"] = pick(c.green_s, None, "control.green_s")
     elif c.kind == "priority":
         if stem is not None:
@@ -393,7 +396,20 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
         "control": control,
         "assumed": sorted(assumed),
     }
-    return Scenario.model_validate(data, context={"config": cfg})
+    return _validate_with_greens(data, cfg)
+
+
+def _validate_with_greens(data: dict[str, Any], cfg: Config) -> Scenario:
+    """Validate; for a signal without green times, derive them with Webster's split method."""
+    scenario = Scenario.model_validate(data, context={"config": cfg})
+    c = scenario.control
+    if isinstance(c, FixedTimeSignal) and c.green_s is None:
+        from junctionlab.signal import webster_greens
+
+        data = scenario.model_dump(mode="json")
+        data["control"]["green_s"] = list(webster_greens(scenario, cfg))
+        scenario = Scenario.model_validate(data, context={"config": cfg})
+    return scenario
 
 
 def _other(stem: Arm) -> Arm:

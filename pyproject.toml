@@ -13,6 +13,7 @@ dependencies = [
     # SUMO is pinned to a minor version: method.md documents its vehicle defaults.
     "eclipse-sumo==1.28.*",
     "sumolib==1.28.*",
+    "traci==1.28.*",
     "pydantic>=2.7",
     "pyyaml>=6.0",
 ]

@@ -71,7 +71,8 @@ def test_defaults_fill_gaps_and_are_marked_assumed():
     assert north.turning_shares_pct == dict(cfg.scenario_defaults.turning_shares_pct.four_arm)
     assert s.control.cycle_s == cfg.control.cycle_default_s
     assert s.control.phase_plan == "two_phase"
-    assert s.control.green_s is None
+    # Webster splits fill the available green: 90 s - 2 x 5 s intergreen.
+    assert sum(s.control.green_s) == 80
     assert s.speed_limit_kmh == 50
     assert s.approach_length_m == 300
     for path in (

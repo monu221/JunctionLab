@@ -16,3 +16,11 @@ pytest
 ```
 
 Defaults live in `config.yaml`.
+
+## Command line
+
+```sh
+python -m junctionlab list                      # bundled examples
+python -m junctionlab run four_arm_signal       # build, simulate 5 seeds, write runs/<time>_<name>/
+python -m junctionlab run my_scenario.json --seeds 1,2 --out runs/test
+```

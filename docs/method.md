@@ -63,7 +63,12 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 - The bus lane is an extra lane to the right of the general-traffic lanes. It counts towards the 4-lane maximum and towards the lane count of the exit leg.
 - On a T-junction, the stem is the arm opposite the missing arm. Default lane uses lose movements that would lead to the missing arm.
 - No bus lane and no bus demand mean the feature isn't used. They are not marked as assumed.
-- When green splits are not given, they are marked as assumed and derived with Webster when the run is built, using the saturation flow above.
+- **Green splits.** When they are not given, they are derived with Webster's split method and marked as assumed. The steps:
+  1. Each movement's flow is split equally over the lanes that serve it.
+  2. Each phase's critical flow ratio is its highest lane flow divided by the saturation flow. Heavy vehicles count as one vehicle each while the saturation flow is a placeholder.
+  3. The available green (cycle minus one intergreen per phase) is shared in proportion to these ratios. Phases below the minimum green are raised to it, and the result is rounded to whole seconds.
+
+  Editing the scenario in the form re-derives splits that are still assumed.
 
 Anything the text does not state gets a default from `config.yaml`, and the form highlights assumed fields so the user can check them. The form edits the scenario only, never the config. If the text cannot be interpreted, the app asks the user to rephrase instead of guessing.
 
@@ -71,8 +76,22 @@ Anything the text does not state gets a default from `config.yaml`, and the form
 
 Python writes the SUMO node, edge, connection, signal and route files, builds the network with `netconvert`, and runs `sumo` headless.
 
+- **Network.**
+  - The junction node sits at the centre, and each arm has an inbound edge and an exit edge with the same lane count.
+  - The arm end nodes are placed so that every inbound lane is exactly the approach length long, measured from the edge of the junction area.
+  - Lane connections are written explicitly:
+    - Left turns use the leftmost exit lanes, and right turns use the rightmost.
+    - Through lanes keep their position among the general lanes.
+    - The bus lane connects to the rightmost exit lane for through and right.
+- **Signal states.** Each phase is green, then amber, then all-red:
+  - Links from approaches served by the phase get a major green (`G`).
+  - Left turns facing a served opposite approach get a permitted green (`g`) and yield to oncoming traffic.
+  - When two `G` links would enter the same exit lane, the lower-ranked one yields (`g`). The ranking is general through, then general right, then bus lane, then left. This applies, for example, where a bus lane merges at the exit.
+  - Phases: 4-arm two-phase serves north–south, then east–west. 4-phase split serves one approach at a time. A T-junction serves the main road, then the stem.
+- **Priority rule.** The major-road edges get a higher edge priority in `netconvert`, so minor-road traffic yields. An all-way stop uses SUMO's `allway_stop` junction type.
+
 - **Seeds.** Each scenario runs 5 times with different random seeds. Results are reported as mean and range. Comparisons use the same seeds for both scenarios.
-- **Arrivals.** Poisson: SUMO flows with random exponential headways (`period="exp(rate)"`), one flow per approach and movement.
+- **Arrivals.** Poisson: SUMO flows with random exponential headways (`period="exp(rate)"`), one flow per approach, movement and vehicle type (car, truck, bus). Vehicles that cannot enter wait at the start of the approach, and their wait counts as `departDelay`.
 - **Driver model.** Krauss, using the parameters in `config.yaml` (SUMO defaults, sigma 0.5).
 - **Vehicle types.** Cars use SUMO's default passenger type. Heavy vehicles use SUMO's default truck type, unchanged. In SUMO 1.28 its values are:
 
@@ -98,7 +117,11 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
   3. A run-out of up to 15 minutes, so that measured vehicles can leave.
 
   Only vehicles that depart during the measurement period are counted, selected by depart time. Measured vehicles still in the network at the end of the run-out are reported as unfinished.
-- **No teleports.** Teleporting is disabled (`--time-to-teleport -1`). Every run stops at the hard time cap above. If any vehicle has been stopped for longer than 300 s (default), the run reports a gridlock warning instead of silently removing the vehicle.
+
+  Demand continues during the run-out, so the last measured vehicles see normal traffic. Run-out vehicles have ids starting with `ro_` and are never measured. A run ends as soon as every warm-up and measurement vehicle has left, or at the time cap at the latest.
+- **No teleports.** Teleporting is disabled (`--time-to-teleport -1`). Every run stops at the hard time cap above. If any vehicle has been stopped for longer than 300 s (default), the run reports a gridlock warning instead of silently removing the vehicle. Stopped time is the uninterrupted time below 0.1 m/s, checked through TraCI every 10 s of simulated time.
+- **Collisions.** Collisions are logged and counted (`--collision.action warn`), never resolved by removing vehicles. A clean run has none.
+- **Detectors.** An E2 lane-area detector covers the full length of every inbound lane and writes 60-second intervals.
 - **Spill-back warning.** A warning is raised when the maximum queue on an approach reaches 80% of its length.
 
 ## 3. What is measured
