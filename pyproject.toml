@@ -16,6 +16,9 @@ dependencies = [
     "traci==1.28.*",
     "pydantic>=2.7",
     "pyyaml>=6.0",
+    # Messages API with structured outputs (messages.parse); 2.x is built on httpx2.
+    "anthropic>=2.10,<3",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

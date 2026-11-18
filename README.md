@@ -24,4 +24,13 @@ python -m junctionlab list                      # bundled examples
 python -m junctionlab run four_arm_signal       # simulate 5 seeds, print delay/queue/throughput/LOS
 python -m junctionlab run my_scenario.json --seeds 1,2 --out runs/test
 python -m junctionlab webster                   # check simulated delay against Webster (about 20 s)
+python -m junctionlab interpret "Crossroads, 800 veh/h from the north, ..." --out s.json --run
+```
+
+`interpret` calls Claude and needs `ANTHROPIC_API_KEY` in `.env` (see `.env.example`) or in the environment. It uses at most 5 calls per session and 50 per day. Everything else works without a key.
+
+Tests make no API calls. To run the one live test:
+
+```sh
+JUNCTIONLAB_LIVE_LLM=1 pytest tests/test_llm.py -k live
 ```

@@ -81,6 +81,10 @@ Recorded 2026-11-18, from the question round on the original plan.
 - **Control delay (after M4).** LOS and the Webster comparison use control delay: total delay minus a free-flow baseline per approach and movement. The baseline comes from a low-demand run with the junction unregulated. Total delay stays in `summary.json` and in the output.
   - Webster: the baseline is 2.1 s, and the differences are now −0.6, −0.9 and −3.0 s (all pass); x = 0.95 is −23.1 s.
   - Example 1: east and west change from LOS D to C (34.1 and 34.5 s, just under the 35 s boundary). North's seed range widens to B–C.
+- **LLM call (M5).**
+  - Messages API `create` with `output_config.format` (JSON schema built by `anthropic.transform_schema`), not `messages.parse`. That way the stop reason is checked before parsing, and a refused or cut-off answer is not reported as a schema error.
+  - Effort `medium`, the Haiku 5.5 default, set in config.
+  - The recorded responses in `tests/data/llm/` are synthetic for now (`"source": "synthetic"`), in the exact API response format. They are to be re-recorded live once the API key is in `.env`.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 

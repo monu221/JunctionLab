@@ -1,4 +1,4 @@
-"""Command line: python -m junctionlab {list,run} ..."""
+"""Command line: python -m junctionlab {list,run,webster,interpret} ..."""
 
 from __future__ import annotations
 
@@ -169,6 +169,44 @@ def cmd_webster(args: argparse.Namespace) -> int:
     return 0 if report.all_passed else 1
 
 
+def cmd_interpret(args: argparse.Namespace) -> int:
+    from junctionlab import llm
+
+    text = args.text
+    if text == "-":
+        text = sys.stdin.read()
+    transport = llm.RecordingTransport(args.record, text) if args.record else None
+    try:
+        client = llm.make_client(transport=transport)
+        result = llm.interpret(text, llm.LlmSession(), client=client)
+    except llm.InterpretationError as e:
+        print(e)
+        print(llm.REPHRASE_HINT)
+        return 2
+    except llm.LlmError as e:
+        print(e)
+        return 3
+    finally:
+        if args.record and args.record.is_file():
+            print(f"Recorded response: {args.record}")
+
+    s = result.scenario
+    _describe(s)
+    for path in s.assumed:
+        print(f"    assumed: {path}")
+    for note in result.notes:
+        print(f"  note: {note}")
+    if args.out:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(s.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        print(f"Scenario written to {args.out}")
+    if args.run:
+        result_run = run_scenario(s)
+        print(f"\nRun directory: {result_run.dir}")
+        print_summary(result_run.summary)
+    return 0
+
+
 def cmd_list(_: argparse.Namespace) -> int:
     for e in list_examples():
         print(f"{e.key:<22} {e.description}")
@@ -188,6 +226,12 @@ def main(argv: list[str] | None = None) -> int:
     web = sub.add_parser("webster", help="check simulated delay against Webster's formula")
     web.add_argument("--out", type=Path, help="output directory (default: runs/<time>_webster)")
     web.set_defaults(func=cmd_webster)
+    text = sub.add_parser("interpret", help="turn a description into a scenario (uses the API)")
+    text.add_argument("text", help="junction description in quotes, or - to read stdin")
+    text.add_argument("--out", type=Path, help="write the scenario JSON here")
+    text.add_argument("--run", action="store_true", help="simulate the scenario afterwards")
+    text.add_argument("--record", type=Path, help="save the API response for replay in tests")
+    text.set_defaults(func=cmd_interpret)
     args = parser.parse_args(argv)
     return args.func(args)
 

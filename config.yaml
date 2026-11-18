@@ -78,4 +78,7 @@ llm:
   model: claude-haiku-5-5
   calls_per_session: 5
   calls_per_day: 50
-  counter_file: var/llm_calls.json
+  counter_file: var/llm_calls.json   # daily count (UTC date); relative to the repo root
+  max_tokens: 16000
+  effort: medium                     # Haiku 5.5 default; low | medium | high
+  max_input_chars: 2000              # longer descriptions are rejected before any call

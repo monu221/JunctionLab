@@ -129,6 +129,9 @@ class Llm(_Frozen):
     calls_per_session: int = Field(ge=0)
     calls_per_day: int = Field(ge=0)
     counter_file: Path
+    max_tokens: int = Field(gt=0)
+    effort: Literal["low", "medium", "high"]
+    max_input_chars: int = Field(gt=0)
 
 
 class Config(_Frozen):
