@@ -128,15 +128,22 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
 | Measure | Definition | SUMO source |
 | --- | --- | --- |
-| Average delay | `timeLoss + departDelay` per measured vehicle (s/veh) | `tripinfo` output |
-| Maximum queue | Per approach: the maximum over the run of the longest lane queue (m and vehicles) | E2 lane-area detector on every approach lane: `maxJamLengthInMeters`, `maxJamLengthInVehicles` |
-| Throughput | Vehicles passing the junction per hour | `tripinfo` output |
-| Unfinished vehicles | Measured vehicles still in the network at the time cap | `tripinfo` with `--tripinfo-output.write-unfinished` |
+| Average delay | `timeLoss + departDelay` per measured vehicle (s/veh) | `tripinfo` output, plus the runner's record of vehicles still waiting to enter |
+| Maximum queue | Per approach: the maximum over the measurement period of the longest lane queue (m and vehicles) | E2 lane-area detector on every approach lane: `maxJamLengthInMeters`, `maxJamLengthInVehicles` |
+| Throughput | Vehicles passing the junction per hour during the measurement period | E1 loop 1 m before the stop line of every approach lane (`nVehContrib`) |
+| Demand | Measured vehicles generated per hour (this seed's Poisson draw, not the nominal value) | `tripinfo` plus vehicles that never entered |
+| Unfinished vehicles | Measured vehicles still in the network, or still waiting to enter, at the time cap | `tripinfo` with `--tripinfo-output.write-unfinished`, and `backlog.json` |
 | Level of service | Grade A to F from average delay and the overload rules below | Tables below |
 
 **Delay.** `timeLoss` is the time lost compared with driving at the desired speed. `departDelay` is the time a vehicle waited to be inserted. Adding `departDelay` means queues that back up beyond the network edge in overloaded cases are still counted. Exit legs flow freely, so this sum is close to the HCM control delay. It is not identical: it also includes small losses on the approach and exit legs outside the junction influence area. The Webster test cases report the timeLoss of a free-flow run to show that this background loss is close to zero.
 
-**Queue.** For each approach, the reported queue is the longest single lane, not the sum of its lanes. Vehicle counts come directly from the detector.
+**Measured vehicles.** Vehicles from the warm-up and measurement flows whose intended departure (`depart − departDelay`) falls in the measurement period. Run-out vehicles (`ro_`) are never measured.
+
+**Unfinished vehicles.** At the time cap, vehicles still driving count with their delay so far. Vehicles still waiting to enter count with their wait so far, measured from when the runner first saw them waiting (within 10 s). Both make the approach delay a lower bound, which is flagged in the output. SUMO's tripinfo leaves out vehicles that never entered, so the runner records them (`backlog.json`).
+
+**Queue.** For each approach, the reported queue is the longest single lane, not the sum of its lanes. It is the largest value from any 60-second detector interval inside the measurement period. Vehicle counts come directly from the detector. A spill-back warning is raised when the queue reaches 80% of the approach length in any seed.
+
+**Throughput.** Counted at the stop line rather than from tripinfo, so it measures vehicles that actually crossed the junction during the measurement period.
 
 **Level of service.** The table is chosen by control type. Thresholds are average delay per vehicle, as in the US Highway Capacity Manual. They live in `config.yaml`.
 
@@ -147,8 +154,15 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
 An approach is graded F regardless of delay when it is overloaded:
 
-- **Signal approaches:** v/c > 1, with capacity calculated from the measured saturation flow (section 4) × effective green ratio.
-- **Priority and all-way-stop approaches:** throughput is below 95% of demand (default), or the insertion backlog keeps growing during the measurement period.
+- **Signal approaches:** v/c > 1. v is the approach's critical lane flow from nominal demand. Capacity is saturation flow × green / cycle for the phase serving the approach. Until M4, the saturation flow is the 1,800 veh/h placeholder.
+- **Priority and all-way-stop approaches:** either of two conditions:
+  - Throughput is below 95% of demand (default).
+  - The insertion backlog (vehicles waiting to enter) grows by at least 5 vehicles from the start to the end of the measurement period (default).
+
+**Aggregation over seeds.** Every measure is reported per approach as mean, minimum and maximum over the 5 seeds.
+- The approach grade is taken from the mean delay. The overload rules use the mean throughput, demand and backlog growth.
+- The grades of the individual seeds are shown as a range, for example C–D.
+- A junction row gives the vehicle-weighted mean delay and the total throughput. Signalised and all-way-stop junctions also get a junction LOS from that delay. A priority junction gets none, because HCM grades only its minor movements.
 
 German practice uses the HBS (Handbuch für die Bemessung von Straßenverkehrsanlagen), which also grades A to F with its own thresholds. It is deferred: check its thresholds against the current HBS edition before adding them.
 

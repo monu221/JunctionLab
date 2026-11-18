@@ -1,0 +1,24 @@
+{
+  "description": "Original T-junction example volumes (main road 700 + 650 veh/h, stem 250 veh/h). The single shared stem lane is overloaded: kept as a test case for the time cap and gridlock warning.",
+  "draft": {
+    "name": "T-junction, overloaded stem",
+    "junction_type": "t_junction",
+    "approaches": {
+      "east": {
+        "demand_vph": 700,
+        "lane_count": 1
+      },
+      "south": {
+        "demand_vph": 250,
+        "lane_count": 1
+      },
+      "west": {
+        "demand_vph": 650,
+        "lane_count": 1
+      }
+    },
+    "control": {
+      "kind": "priority"
+    }
+  }
+}

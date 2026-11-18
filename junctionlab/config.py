@@ -93,6 +93,7 @@ class Los(_Frozen):
     signalised: dict[str, float]
     unsignalised: dict[str, float]
     overload_throughput_share: float = Field(gt=0, le=1)
+    backlog_growth_min_veh: int = Field(ge=1)
 
     @field_validator("signalised", "unsignalised")
     @classmethod

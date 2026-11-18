@@ -31,6 +31,7 @@ from junctionlab.scenario import (
 from junctionlab.signal import phase_arms
 
 JUNCTION_ID = "C"
+RUNOUT_PREFIX = "ro_"  # flows that keep demand going after the measurement window
 TLS_PROGRAM_ID = "junctionlab"
 _DIRECTION = {"north": (0, 1), "east": (1, 0), "south": (0, -1), "west": (-1, 0)}
 _SUMO_MOVEMENT = {"l": "left", "s": "through", "r": "right"}
@@ -298,7 +299,7 @@ def flows(scenario: Scenario, config: Config | None = None) -> list[dict[str, st
     cfg = config or get_config()
     sim = cfg.simulation
     window_end = sim.warmup_s + sim.measurement_s
-    blocks = [("", 0, window_end), ("ro_", window_end, sim.end_s)]
+    blocks = [("", 0, window_end), (RUNOUT_PREFIX, window_end, sim.end_s)]
 
     streams: list[tuple[str, Arm, Movement, str, float, str]] = []
     for arm, a in scenario.approaches.items():
@@ -362,10 +363,12 @@ def write_routes(scenario: Scenario, out_dir: Path, config: Config | None = None
 DETECTOR_PERIOD_S = 60
 
 
-def write_detectors(
-    scenario: Scenario, net_path: Path, out_dir: Path, output_file: str = "e2.xml"
-) -> Path:
-    """E2 lane-area detector over the full length of every approach lane."""
+STOP_LINE_OFFSET_M = 1.0
+
+
+def write_detectors(scenario: Scenario, net_path: Path, out_dir: Path) -> Path:
+    """On every approach lane: an E2 lane-area detector over the full length (queues, e2.xml)
+    and an E1 loop just before the stop line (vehicles entering the junction, e1.xml)."""
     net = sumolib.net.readNet(str(net_path), withPrograms=False)
     root = ET.Element("additional")
     for arm in scenario.approaches:
@@ -378,6 +381,15 @@ def write_detectors(
                 pos="0",
                 endPos=f"{lane.getLength():.2f}",
                 period=str(DETECTOR_PERIOD_S),
-                file=output_file,
+                file="e2.xml",
+            )
+            ET.SubElement(
+                root,
+                "inductionLoop",
+                id=f"e1_{lane.getID()}",
+                lane=lane.getID(),
+                pos=f"{lane.getLength() - STOP_LINE_OFFSET_M:.2f}",
+                period=str(DETECTOR_PERIOD_S),
+                file="e1.xml",
             )
     return _write(root, out_dir / "detectors.add.xml")

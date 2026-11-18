@@ -203,3 +203,9 @@ def test_e2_detector_on_every_approach_lane(built, tmp_path):
     assert set(dets) == {lane.getID() for lane in lanes}
     for lane in lanes:
         assert float(dets[lane.getID()].get("endPos")) == pytest.approx(lane.getLength(), abs=0.01)
+    loops = {d.get("lane"): d for d in ET.parse(path).getroot().iter("inductionLoop")}
+    assert set(loops) == set(dets)
+    for lane in lanes:  # E1 just before the stop line
+        assert float(loops[lane.getID()].get("pos")) == pytest.approx(
+            lane.getLength() - 1, abs=0.01
+        )

@@ -52,6 +52,9 @@ los:
   unsignalised: {A: 10, B: 15, C: 25, D: 35, E: 50}
   # Unsignalised approaches: grade F when throughput < this share of demand.
   overload_throughput_share: 0.95
+  # Unsignalised approaches: grade F when the insertion backlog grows by at least this many
+  # vehicles from the start to the end of the measurement period.
+  backlog_growth_min_veh: 5
 
 webster:
   x_tested: [0.5, 0.7, 0.85]

@@ -1,13 +1,24 @@
 {
-  "description": "T-junction with a priority rule. The main road runs east-west with 700 veh/h from the east and 650 veh/h from the west. The side road joins from the south with 250 veh/h. One lane on each approach.",
+  "description": "T-junction with a priority rule. The main road runs east-west with 350 veh/h from each direction. The side road joins from the south with 140 veh/h. One lane on each approach.",
   "draft": {
     "name": "T-junction with priority rule",
     "junction_type": "t_junction",
     "approaches": {
-      "east": {"demand_vph": 700, "lane_count": 1},
-      "south": {"demand_vph": 250, "lane_count": 1},
-      "west": {"demand_vph": 650, "lane_count": 1}
+      "east": {
+        "demand_vph": 350,
+        "lane_count": 1
+      },
+      "south": {
+        "demand_vph": 140,
+        "lane_count": 1
+      },
+      "west": {
+        "demand_vph": 350,
+        "lane_count": 1
+      }
     },
-    "control": {"kind": "priority"}
+    "control": {
+      "kind": "priority"
+    }
   }
 }

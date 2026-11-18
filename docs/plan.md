@@ -2,6 +2,10 @@
 
 Scope: [product-brief.md](product-brief.md). Method: [method.md](method.md).
 
+## Working rule
+
+At the end of every milestone: commit, push, check that CI passes on Ubuntu and Windows (fix and push again if it fails), then stop. No need to ask first.
+
 ## Milestones
 
 | # | Milestone | Content | Done when |
@@ -65,6 +69,14 @@ Recorded 2026-11-18, from the question round on the original plan.
 - All lanes run the full approach length (no short turn bays).
 - Krauss driver model with SUMO defaults (sigma 0.5), set in config.
 - CI runs on Windows and Ubuntu.
+
+**Later decisions**
+
+- **T-junction example volumes:** main road 350 + 350 veh/h, stem 140 veh/h, which puts the stem at LOS C–D (2026-11-18, M2). The first volumes (700 + 650, stem 250) overloaded the stem and are kept as a test case for the time cap and gridlock warning (`tests/data/t_junction_overloaded.json`).
+- **Permitted lefts in example 1 stay as they are,** even though east and west lefts in the shared lanes see high delays.
+- **Comparison demo:** example 1 run as two-phase vs four-phase split.
+- **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. I proposed this in M3, and it is not yet confirmed.
+- **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 
 ## Roadmap (after v1)
 

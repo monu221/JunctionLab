@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from junctionlab.examples import EXAMPLES_DIR, list_examples, load_example
+from junctionlab.metrics import Stat, Summary
 from junctionlab.runner import run_scenario
 from junctionlab.scenario import Scenario
 
@@ -39,6 +40,46 @@ def _describe(s: Scenario) -> None:
         print(f"  assumed (defaults): {len(s.assumed)} field(s)")
 
 
+def _fmt(stat: Stat | None, digits: int = 1) -> str:
+    if stat is None:
+        return "-"
+    return f"{stat.mean:.{digits}f} ({stat.min:.{digits}f}-{stat.max:.{digits}f})"
+
+
+def print_summary(summary: Summary) -> None:
+    print(f"\nResults over {len(summary.seeds)} seed(s): mean (min-max)")
+    header = (
+        f"{'approach':<9}{'delay s/veh':>25}{'max queue m':>17}{'max queue veh':>16}"
+        f"{'throughput veh/h':>20}   LOS (seeds)"
+    )
+    rule = "-" * (len(header) + 4)
+    print(header)
+    print(rule)
+    for a in summary.approaches.values():
+        delay = _fmt(a.delay_s) + ("*" if a.delay_lower_bound else " ")
+        print(
+            f"{a.arm:<9}{delay:>25}{_fmt(a.queue_m, 0):>17}{_fmt(a.queue_veh, 0):>16}"
+            f"{_fmt(a.throughput_vph, 0):>20}   {a.los} ({a.los_range})"
+        )
+    j = summary.junction
+    print(rule)
+    delay = _fmt(j.delay_s) + " "
+    print(f"{'junction':<9}{delay:>25}{'':>33}{_fmt(j.throughput_vph, 0):>20}   {j.los}")
+
+    notes = [
+        f"{a.arm}: LOS F because {', '.join(a.f_reasons)}"
+        for a in summary.approaches.values()
+        if a.f_reasons
+    ]
+    if any(a.delay_lower_bound for a in summary.approaches.values()):
+        notes.append("* lower bound: some measured vehicles had not finished at the time cap")
+    notes += summary.warnings
+    if notes:
+        print()
+    for line in notes:
+        print(f"  {line}")
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     scenario = _load(args.target)
     _describe(scenario)
@@ -46,17 +87,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     result = run_scenario(scenario, run_dir=args.out, seeds=seeds)
 
     print(f"\nRun directory: {result.dir}")
-    print(f"{'seed':>4}  {'ended by':<24}{'sim end':>8}{'inserted':>10}{'arrived':>9}  warnings")
-    any_warning = False
+    print(f"{'seed':>4}  {'ended by':<24}{'sim end':>8}  warnings")
     for r in result.seeds:
-        warnings = "; ".join(r.warnings) or "-"
-        any_warning |= bool(r.warnings)
-        print(
-            f"{r.seed:>4}  {r.ended_by:<24}{r.end_time_s:>7.0f}s{r.vehicles_inserted:>10}"
-            f"{r.vehicles_arrived:>9}  {warnings}"
-        )
-    print("\nPer-seed outputs: tripinfo.xml, e2.xml, statistics.xml, sumo.log, run.json")
-    print("Delay, queue and LOS reporting comes in M3.")
+        print(f"{r.seed:>4}  {r.ended_by:<24}{r.end_time_s:>7.0f}s  {'; '.join(r.warnings) or '-'}")
+    print_summary(result.summary)
+
+    any_warning = result.summary.warnings or any(r.warnings for r in result.seeds)
     return 1 if any_warning and args.strict else 0
 
 

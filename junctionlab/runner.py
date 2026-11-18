@@ -23,11 +23,12 @@ from pathlib import Path
 import traci
 
 from junctionlab import build, sumo_env
+from junctionlab.build import RUNOUT_PREFIX
 from junctionlab.config import REPO_ROOT, Config, get_config
+from junctionlab.metrics import Summary, summarize
 from junctionlab.scenario import FixedTimeSignal, Scenario
 
 CHECK_INTERVAL_S = 10
-RUNOUT_PREFIX = "ro_"
 _TRACI_START_LOCK = threading.Lock()  # free-port selection in traci.start is not thread-safe
 
 
@@ -62,6 +63,14 @@ class SeedResult:
         return self.dir / "e2.xml"
 
     @property
+    def e1(self) -> Path:
+        return self.dir / "e1.xml"
+
+    @property
+    def backlog(self) -> Path:
+        return self.dir / "backlog.json"
+
+    @property
     def warnings(self) -> list[str]:
         w = []
         if self.gridlock:
@@ -84,6 +93,7 @@ class RunResult:
     dir: Path
     net: Path
     seeds: list[SeedResult]
+    summary: Summary
 
 
 # --------------------------------------------------------------------------- preparation
@@ -111,6 +121,43 @@ def prepare(scenario: Scenario, run_dir: Path, config: Config | None = None) -> 
 
 
 # --------------------------------------------------------------------------- one seed
+
+
+@dataclass
+class Backlog:
+    """Vehicles waiting to be inserted (they are not in tripinfo until they enter).
+
+    Records the count per approach at every check, and when each waiting vehicle was first
+    seen, which approximates its intended departure (to within one check interval).
+    """
+
+    interval_s: float
+    arms: list[str]
+    times: list[float] = field(default_factory=list)
+    counts: dict[str, list[int]] = field(default_factory=dict)
+    first_seen: dict[str, float] = field(default_factory=dict)
+
+    def record(self, t: float, pending: tuple[str, ...] | list[str]) -> None:
+        self.times.append(t)
+        per_arm = dict.fromkeys(self.arms, 0)
+        for vid in pending:
+            self.first_seen.setdefault(vid, t)
+            arm = vid.removeprefix(RUNOUT_PREFIX).split("_", 1)[0]
+            per_arm[arm] = per_arm.get(arm, 0) + 1
+        for arm, n in per_arm.items():
+            self.counts.setdefault(arm, []).append(n)
+
+    def save(self, path: Path, still_pending: tuple[str, ...] | list[str]) -> None:
+        data = {
+            "interval_s": self.interval_s,
+            "times_s": self.times,
+            "counts_by_arm": self.counts,
+            "never_inserted": [
+                {"id": vid, "first_seen_s": self.first_seen.get(vid, self.times[-1])}
+                for vid in still_pending
+            ],
+        }
+        path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def _sumo_command(files: dict[str, Path], seed_dir: Path, seed: int, cfg: Config) -> list[str]:
@@ -158,6 +205,7 @@ def run_seed(
 
     window_end = sim.warmup_s + sim.measurement_s
     flagged: dict[str, GridlockEvent] = {}
+    backlog = Backlog(interval_s=CHECK_INTERVAL_S, arms=list(scenario.approaches))
     t = 0.0
     ended_by = "time_cap"
     remaining = 0
@@ -166,6 +214,8 @@ def run_seed(
             t = min(t + CHECK_INTERVAL_S, sim.end_s)
             conn.simulationStep(t)
             running = conn.vehicle.getIDList()
+            pending = conn.simulation.getPendingVehicles()
+            backlog.record(t, pending)
             for vid in running:
                 if vid in flagged:
                     continue
@@ -173,7 +223,6 @@ def run_seed(
                 if stopped > sim.gridlock_stop_s:
                     flagged[vid] = GridlockEvent(vid, conn.vehicle.getLaneID(vid), t, stopped)
             if t >= window_end:
-                pending = conn.simulation.getPendingVehicles()
                 remaining = sum(map(_is_measured, running)) + sum(map(_is_measured, pending))
                 if remaining == 0:
                     ended_by = "measured_vehicles_left"
@@ -193,6 +242,7 @@ def run_seed(
         wall_time_s=round(time.perf_counter() - started, 2),
     )
     _read_statistics(result)
+    backlog.save(seed_dir / "backlog.json", still_pending=pending)
     summary = asdict(result) | {"dir": str(seed_dir), "warnings": result.warnings}
     (seed_dir / "run.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return result
@@ -234,4 +284,8 @@ def run_scenario(
             results = list(pool.map(one, seeds))
     else:
         results = [one(s) for s in seeds]
-    return RunResult(scenario=scenario, dir=run_dir, net=files["net"], seeds=results)
+    summary = summarize(scenario, {r.seed: r.dir for r in results}, cfg)
+    (run_dir / "summary.json").write_text(summary.to_json(), encoding="utf-8")
+    return RunResult(
+        scenario=scenario, dir=run_dir, net=files["net"], seeds=results, summary=summary
+    )

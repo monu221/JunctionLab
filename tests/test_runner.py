@@ -1,12 +1,13 @@
 """End-to-end SUMO runs with a shortened timeline to keep the suite fast."""
 
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
 from junctionlab.__main__ import main
 from junctionlab.config import get_config
-from junctionlab.examples import list_examples
+from junctionlab.examples import list_examples, load_example
 from junctionlab.runner import run_scenario
 from junctionlab.scenario import ScenarioDraft, resolve
 
@@ -65,6 +66,16 @@ def test_overload_hits_time_cap(tmp_path):
     assert unfinished
 
 
+def test_original_overloaded_t_junction_warns(tmp_path):
+    """The first T-junction example volumes overload the stem: full timeline, all 5 seeds."""
+    example = load_example(Path(__file__).parent / "data" / "t_junction_overloaded.json")
+    result = run_scenario(example.scenario(), tmp_path)
+    assert all(r.ended_by == "time_cap" for r in result.seeds)
+    assert all(r.teleports == 0 for r in result.seeds)
+    assert any(r.gridlock for r in result.seeds)
+    assert all(r.warnings for r in result.seeds)
+
+
 def test_gridlock_warning(tmp_path):
     # With a 4-phase split and a 120 s cycle, red lasts far longer than 20 s.
     draft = EXAMPLES["four_arm_signal"].draft.model_dump(exclude_none=True)
@@ -96,4 +107,8 @@ def test_cli_run(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "greens 49 / 31 s" in out
     assert "measured_vehicles_left" in out
+    assert "Results over 1 seed(s): mean (min-max)" in out
+    for arm in ("north", "east", "south", "west", "junction"):
+        assert any(line.startswith(arm) for line in out.splitlines()), arm
+    assert (tmp_path / "summary.json").is_file()
     assert (tmp_path / "seed_1" / "tripinfo.xml").is_file()
