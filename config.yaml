@@ -1,0 +1,47 @@
+# JunctionLab defaults. See docs/method.md and docs/plan.md (Decisions).
+# The app form edits scenarios, never this file.
+# Values that are still undecided are not listed yet; each milestone adds the ones it needs.
+
+geometry:
+  approach_length_m: 300        # every lane runs the full length; exit legs mirror the inbound lane count
+  queue_warning_share: 0.8      # warn when an approach's max queue reaches this share of its length
+
+simulation:
+  seeds: [1, 2, 3, 4, 5]
+  warmup_s: 600
+  measurement_s: 3600           # vehicles departing in this window are measured
+  runout_max_s: 900             # extra time so measured vehicles can leave; hard time cap after this
+  time_to_teleport_s: -1        # teleports disabled
+
+driver:
+  car_follow_model: Krauss
+  sigma: 0.5                    # SUMO default
+
+vehicles:
+  car_vclass: passenger         # SUMO default types, unchanged
+  heavy_vclass: truck
+  bus_vclass: bus
+  bus_demand_default_bph: 0
+
+control:
+  major_road_default: north-south   # T-junction: the stem is always minor
+  four_arm_phase_plan_default: two_phase   # alternative: four_phase_split
+  amber_s: 3
+  all_red_s: 2
+
+los:
+  # HCM average delay thresholds (s/veh): upper bounds for A..E; above the last one is F.
+  signalised: {A: 10, B: 20, C: 35, D: 55, E: 80}
+  unsignalised: {A: 10, B: 15, C: 25, D: 35, E: 50}
+
+webster:
+  x_tested: [0.5, 0.7, 0.85]
+  x_info_only: [0.95]
+  margin_relative: 0.15         # pass if within +-15% or +-3 s, whichever is larger
+  margin_absolute_s: 3.0
+
+llm:
+  model: claude-haiku-5-5
+  calls_per_session: 5
+  calls_per_day: 50
+  counter_file: var/llm_calls.json
