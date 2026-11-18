@@ -46,7 +46,8 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 | Minimum green | 5 s |
 | Intergreen | 3 s amber + 2 s all-red |
 | Green splits | Webster, from critical flow ratios |
-| Saturation flow (for green splits) | 1,800 veh/h per lane: placeholder, replaced by the measured value in M4 |
+| Saturation flow | 1,861 veh/h per lane, measured in M4 (section 4). It replaced the 1,800 veh/h placeholder. |
+| Lost time per phase | 5.75 s, measured in M4. Effective green = green + amber − lost time. |
 | 4-arm phase plan | 2-phase |
 | Major road (priority rule) | north–south |
 | Lane use from a lane count | Leftmost lane left + through, rightmost lane through + right, middle lanes through. A single lane takes all movements. |
@@ -65,8 +66,8 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 - No bus lane and no bus demand mean the feature isn't used. They are not marked as assumed.
 - **Green splits.** When they are not given, they are derived with Webster's split method and marked as assumed. The steps:
   1. Each movement's flow is split equally over the lanes that serve it.
-  2. Each phase's critical flow ratio is its highest lane flow divided by the saturation flow. Heavy vehicles count as one vehicle each while the saturation flow is a placeholder.
-  3. The available green (cycle minus one intergreen per phase) is shared in proportion to these ratios. Phases below the minimum green are raised to it, and the result is rounded to whole seconds.
+  2. Each phase's critical flow ratio is its highest lane flow divided by the saturation flow. Heavy vehicles count as one vehicle each, because v1 uses no passenger-car equivalents.
+  3. The effective green, cycle − phases × (all-red + lost time), is shared in proportion to these ratios. Each phase's displayed green is its effective green − amber + lost time. Phases below the minimum displayed green are raised to it, and the result is rounded to whole seconds.
 
   Editing the scenario in the form re-derives splits that are still assumed.
 
@@ -154,7 +155,7 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
 An approach is graded F regardless of delay when it is overloaded:
 
-- **Signal approaches:** v/c > 1. v is the approach's critical lane flow from nominal demand. Capacity is saturation flow × green / cycle for the phase serving the approach. Until M4, the saturation flow is the 1,800 veh/h placeholder.
+- **Signal approaches:** v/c > 1. v is the approach's critical lane flow from nominal demand. Capacity is saturation flow × effective green / cycle for the phase serving the approach, using the saturation flow and lost time measured in M4.
 - **Priority and all-way-stop approaches:** either of two conditions:
   - Throughput is below 95% of demand (default).
   - The insertion backlog (vehicles waiting to enter) grows by at least 5 vehicles from the start to the end of the measurement period (default).
@@ -179,13 +180,45 @@ d = c(1 − λ)² / (2(1 − λx)) + x² / (2q(1 − x)) − 0.65 (c / q²)^(1/3
 
 **Setup.**
 
-- A single approach with one through lane, a fixed-time signal, cars only, and Poisson arrivals.
-- Saturation flow and lost time are not assumed. They are measured first from a saturated SUMO run on the same geometry: discharge headways after the start-up period give the saturation flow, and the shortfall at the start of green gives the lost time.
+- A single 300 m approach with one through lane, cars only, Poisson arrivals and a 100 m exit.
+- The signal has a 90 s cycle: 40 s green, 3 s amber, 2 s all-red, then 45 s red. This matches a two-phase junction with equal greens.
+- Saturation flow and lost time are not assumed. They are measured first from a saturated run on the same corridor:
+  - Demand is 3,600 veh/h, so a queue always waits at the stop line.
+  - An instant loop 1 m before the stop line logs every crossing.
+  - **Saturation headway:** the mean headway from the 5th queued vehicle of each green onwards, up to the end of the displayed green. The first four headways carry the start-up loss.
+  - **Saturation flow:** 3,600 / saturation headway.
+  - **Lost time:** (green + amber) − vehicles released per cycle × saturation headway. Released vehicles are those crossing from green start until the red.
+  - **Green ratio:** λ = (green + amber − lost time) / cycle.
+- The test cases use demand q = x × saturation flow × λ.
 - Test cases at x = 0.5, 0.7 and 0.85 must agree with Webster within ±15% or ±3 s, whichever is larger.
 - x = 0.95 is reported for information only and is not tested.
 - The free-flow timeLoss (green all the time) is reported to show that background loss is close to zero.
 
 Some gap is expected, because SUMO models acceleration, start-up loss and driver behaviour that the formula simplifies. SUMO parameters are not tuned to hit the margin. If a case fails, the gap is reported and explained.
+
+Run the check with `python -m junctionlab webster`.
+
+**Results** (2026-11-18, SUMO 1.28, Krauss sigma 0.5, step 1 s, 50 km/h, 5 seeds):
+
+- **Saturation headway:** 1.934 s, from 2,965 headways in 195 saturated cycles.
+- **Saturation flow:** 1,861 veh/h. The seeds range from 1,838 to 1,877.
+- **Lost time:** 5.75 s per cycle, from 19.26 vehicles released per cycle.
+- **Effective green:** 37.25 s, so λ = 0.414.
+
+| x | q (veh/h) | Webster (s) | Simulated, mean (min–max) (s) | Difference | Result |
+| --- | --- | --- | --- | --- | --- |
+| 0.50 | 385 | 21.1 | 22.6 (20.4–25.0) | +1.5 s (+7%) | pass |
+| 0.70 | 539 | 24.8 | 26.1 (25.1–27.7) | +1.3 s (+5%) | pass |
+| 0.85 | 655 | 32.4 | 31.5 (26.9–36.7) | −0.9 s (−3%) | pass |
+| 0.95 | 732 | 63.0 | 42.1 (32.5–48.2) | −20.9 s (−33%) | information only |
+
+**Free-flow background loss: 3.1 s per vehicle** (2.9–3.4 s), measured without a signal at 385 veh/h. This is not close to zero. `timeLoss` is measured against each vehicle's own desired speed, and Krauss dawdling (sigma 0.5) makes drivers fall short of it all along the 400 m route. The simulated delays above include this background loss, so the signal-caused delay at x = 0.5–0.7 is about 1.5 s *below* Webster's value. That is still within the margin. The same background loss applies to every junction result.
+
+**x = 0.95.** Simulation is 33% below Webster. Two causes are likely:
+- Webster's random-delay term assumes the queue has reached a steady state. So close to capacity, that state takes far longer than the one-hour measurement period to build up. Time-dependent formulas such as the HCM's use the analysis period for this reason.
+- Car-following on the 300 m approach smooths the Poisson arrivals into slightly more regular arrivals at the stop line, which reduces random delay.
+
+Neither cause is a SUMO defect, and nothing was tuned.
 
 ## 5. Comparing scenarios
 

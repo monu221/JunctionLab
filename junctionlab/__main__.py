@@ -96,6 +96,68 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 1 if any_warning and args.strict else 0
 
 
+def print_webster(report, cfg) -> None:
+    sat = report.saturation
+    print("Saturation flow and lost time (saturated single-lane run, all seeds)")
+    print(
+        f"  saturation headway {sat.headway_s:.3f} s -> saturation flow "
+        f"{sat.saturation_flow_vph:.0f} veh/h "
+        f"(seeds {min(sat.by_seed_vph):.0f}-{max(sat.by_seed_vph):.0f})"
+    )
+    print(
+        f"    from {sat.headways} headways, 5th queued vehicle onwards, "
+        f"in {sat.cycles} saturated cycles"
+    )
+    print(
+        f"  vehicles per cycle {sat.vehicles_per_cycle:.2f} -> lost time "
+        f"{sat.lost_time_s:.2f} s = green {report.green_s:g} + amber "
+        f"{cfg.control.amber_s:g} - {sat.vehicles_per_cycle:.2f} x {sat.headway_s:.3f}"
+    )
+    print(
+        f"  signal: cycle {report.cycle_s:g} s, green {report.green_s:g} s, effective green "
+        f"{report.effective_green_s:.2f} s"
+    )
+    for name, used, measured in (
+        ("saturation_flow_vphpl", cfg.control.saturation_flow_vphpl, sat.saturation_flow_vph),
+        ("lost_time_s", cfg.control.lost_time_s, sat.lost_time_s),
+    ):
+        if abs(used - measured) > 0.02 * measured:
+            print(f"  NOTE: config.yaml {name} = {used:g} differs from this measurement")
+
+    print(
+        f"\nDelay per vehicle (s), {len(sat.by_seed_vph)} seeds; pass if within "
+        f"+-{report.margin_relative:.0%} or +-{report.margin_absolute_s:g} s, whichever is larger"
+    )
+    header = (
+        f"{'x':>5}{'q veh/h':>9}{'green ratio':>13}{'Webster':>9}"
+        f"{'simulated mean (min-max)':>27}{'diff s':>8}{'diff %':>8}   result"
+    )
+    print(header)
+    print("-" * (len(header) + 3))
+    for c in report.cases:
+        result = ("pass" if c.passed else "FAIL") if c.tested else "info only"
+        sim = _fmt(c.simulated_s)
+        print(
+            f"{c.x:>5g}{c.q_vph:>9.0f}{c.green_ratio:>13.3f}{c.webster_s:>9.1f}{sim:>27}"
+            f"{c.diff_s:>+8.1f}{c.diff_pct:>+7.0f}%   {result}"
+        )
+    print(
+        f"\nFree-flow background loss (no signal, {report.free_flow_q_vph:.0f} veh/h): "
+        f"{_fmt(report.free_flow_delay_s, 2)} s/veh"
+    )
+    print("Overall: " + ("PASS" if report.all_passed else "FAIL"))
+
+
+def cmd_webster(args: argparse.Namespace) -> int:
+    from junctionlab.config import get_config
+    from junctionlab.webster import run_check
+
+    cfg = get_config()
+    report = run_check(args.out, cfg)
+    print_webster(report, cfg)
+    return 0 if report.all_passed else 1
+
+
 def cmd_list(_: argparse.Namespace) -> int:
     for e in list_examples():
         print(f"{e.key:<22} {e.description}")
@@ -112,6 +174,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--out", type=Path, help="run directory (default: runs/<time>_<name>)")
     run.add_argument("--strict", action="store_true", help="exit 1 if any run has a warning")
     run.set_defaults(func=cmd_run)
+    web = sub.add_parser("webster", help="check simulated delay against Webster's formula")
+    web.add_argument("--out", type=Path, help="output directory (default: runs/<time>_webster)")
+    web.set_defaults(func=cmd_webster)
     args = parser.parse_args(argv)
     return args.func(args)
 

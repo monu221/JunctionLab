@@ -34,11 +34,14 @@ def test_bus_lane_carries_buses():
 
 def test_greens_proportional_to_critical_ratios():
     s = signal({"north": 800, "east": 500, "south": 600, "west": 500})
+    sat = get_config().control.saturation_flow_vphpl
     y = critical_flow_ratios(s)
-    assert y == pytest.approx([400 / 1800, 250 / 1800])
+    assert y == pytest.approx([400 / sat, 250 / sat])
     greens = webster_greens(s)
     assert sum(greens) == 80  # 90 s - 2 x 5 s intergreen
-    assert greens == (49, 31)  # 80 x 0.222/0.361 = 49.2
+    # effective green 90 - 2 x (2 s all-red + 5.75 s lost) = 74.5, shared 400:250,
+    # then displayed = effective - 3 s amber + 5.75 s lost: 48.6 / 31.4
+    assert greens == (49, 31)
     assert all(g == int(g) for g in greens)
 
 

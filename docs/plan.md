@@ -75,7 +75,11 @@ Recorded 2026-11-18, from the question round on the original plan.
 - **T-junction example volumes:** main road 350 + 350 veh/h, stem 140 veh/h, which puts the stem at LOS C–D (2026-11-18, M2). The first volumes (700 + 650, stem 250) overloaded the stem and are kept as a test case for the time cap and gridlock warning (`tests/data/t_junction_overloaded.json`).
 - **Permitted lefts in example 1 stay as they are,** even though east and west lefts in the shared lanes see high delays.
 - **Comparison demo:** example 1 run as two-phase vs four-phase split.
-- **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. I proposed this in M3, and it is not yet confirmed.
+- **Measured values replace the placeholder (M4).** Saturation flow is 1,861 veh/h per lane, replacing 1,800. Lost time is 5.75 s per phase. Both now feed the Webster green splits (on effective green) and the signal v/c.
+  - Effect on example 1: the greens stay 49 / 31 s, so delays, queues and LOS are unchanged. v/c rises slightly: north 0.408 → 0.418, east and west 0.403 → 0.428, south 0.306 → 0.314.
+- **Webster test signal:** 90 s cycle with 40 s green, matching a two-phase junction with equal greens (M4).
+- **Free-flow background loss** is 3.1 s per vehicle, caused by Krauss dawdling. It is included in all reported delays. Not yet decided: whether to report it or subtract it. See method.md section 4.
+- **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 
 ## Roadmap (after v1)

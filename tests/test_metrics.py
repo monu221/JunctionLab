@@ -44,12 +44,18 @@ def test_unsignalised_los_boundaries(delay, expected):
     assert los_grade(delay, get_config().los.unsignalised) == expected
 
 
-def test_signal_v_c_uses_placeholder_saturation_flow():
+def test_signal_v_c_uses_measured_saturation_flow_and_lost_time():
+    cfg = get_config()
     s = EXAMPLES["four_arm_signal"].scenario()
-    v_c = signal_v_c(s, get_config())
-    # north: 400 veh/h per lane / (1800 x 49/90)
-    assert v_c["north"] == pytest.approx(400 / (1800 * 49 / 90))
-    assert v_c["east"] == pytest.approx(250 / (1800 * 31 / 90))
+    v_c = signal_v_c(s, cfg)
+    sat, lost, amber = (
+        cfg.control.saturation_flow_vphpl,
+        cfg.control.lost_time_s,
+        cfg.control.amber_s,
+    )
+    # north: 400 veh/h per lane / (s x effective green / cycle)
+    assert v_c["north"] == pytest.approx(400 / (sat * (49 + amber - lost) / 90))
+    assert v_c["east"] == pytest.approx(250 / (sat * (31 + amber - lost) / 90))
 
 
 def test_grade_overload_rules():

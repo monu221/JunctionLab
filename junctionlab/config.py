@@ -83,6 +83,10 @@ class Control(_Frozen):
     cycle_default_s: float = Field(gt=0)
     min_green_s: float = Field(gt=0)
     saturation_flow_vphpl: float = Field(gt=0)
+    lost_time_s: float = Field(ge=0)
+
+    def effective_green_s(self, green_s: float) -> float:
+        return green_s + self.amber_s - self.lost_time_s
 
     @property
     def intergreen_s(self) -> float:
@@ -107,6 +111,8 @@ class Los(_Frozen):
 
 
 class Webster(_Frozen):
+    cycle_s: float = Field(gt=0)
+    green_s: float = Field(gt=0)
     x_tested: tuple[float, ...]
     x_info_only: tuple[float, ...]
     margin_relative: float = Field(ge=0)

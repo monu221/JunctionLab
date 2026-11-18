@@ -59,18 +59,21 @@ def critical_flow_ratios(scenario: Scenario, config: Config | None = None) -> li
 
 
 def webster_greens(scenario: Scenario, config: Config | None = None) -> tuple[float, ...]:
-    """Green time per phase (whole seconds) in proportion to the critical flow ratios.
+    """Displayed green per phase (whole seconds), Webster's split method.
 
-    Available green = cycle - phases x intergreen. Phases below the minimum green are raised
-    to it and the rest is shared out again. Uses the configured saturation flow (a placeholder
-    until M4 measures it).
+    Effective green (green + amber - lost time) is shared in proportion to the critical flow
+    ratios: total effective green = cycle - phases x (all-red + lost time). Phases below the
+    minimum displayed green are raised to it and the rest is shared out again. Saturation
+    flow and lost time are the values measured in M4.
     """
     cfg = config or get_config()
+    ctl = cfg.control
     cycle = scenario.control.cycle_s
     y = critical_flow_ratios(scenario, cfg)
     n = len(y)
-    available = cycle - n * cfg.control.intergreen_s
-    gmin = cfg.control.min_green_s
+    shift = ctl.lost_time_s - ctl.amber_s  # displayed green = effective green + shift
+    available = cycle - n * (ctl.all_red_s + ctl.lost_time_s)
+    gmin = ctl.min_green_s - shift  # minimum, as effective green
 
     fixed: dict[int, float] = {}
     while True:
@@ -83,8 +86,8 @@ def webster_greens(scenario: Scenario, config: Config | None = None) -> tuple[fl
             break
         for i in low:
             fixed[i] = gmin
-    raw = [fixed.get(i, greens.get(i, 0.0)) for i in range(n)]
-    return _round_preserving_sum(raw, available)
+    raw = [fixed.get(i, greens.get(i, 0.0)) + shift for i in range(n)]
+    return _round_preserving_sum(raw, cycle - n * ctl.intergreen_s)
 
 
 def _round_preserving_sum(values: list[float], total: float) -> tuple[float, ...]:

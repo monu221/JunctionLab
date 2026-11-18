@@ -68,16 +68,16 @@ def los_grade(delay_s: float, thresholds: dict[str, float]) -> str:
 
 
 def signal_v_c(scenario: Scenario, cfg: Config) -> dict[str, float]:
-    """Degree of saturation per approach: critical lane flow / (s x green / cycle).
+    """Degree of saturation per approach: critical lane flow / (s x effective green / cycle).
 
-    Uses the configured saturation flow (placeholder until M4) and the nominal demand.
+    Uses the saturation flow and lost time measured in M4, and the nominal demand.
     """
     c = scenario.control
     assert isinstance(c, FixedTimeSignal) and c.green_s is not None
     s = cfg.control.saturation_flow_vphpl
     result = {}
     for arms, green in zip(phase_arms(scenario), c.green_s, strict=True):
-        capacity_per_lane = s * green / c.cycle_s
+        capacity_per_lane = s * cfg.control.effective_green_s(green) / c.cycle_s
         for arm in arms:
             result[arm] = max(lane_flows_vph(scenario, arm)) / capacity_per_lane
     return result

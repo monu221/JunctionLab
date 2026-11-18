@@ -23,4 +23,5 @@ Defaults live in `config.yaml`.
 python -m junctionlab list                      # bundled examples
 python -m junctionlab run four_arm_signal       # simulate 5 seeds, print delay/queue/throughput/LOS
 python -m junctionlab run my_scenario.json --seeds 1,2 --out runs/test
+python -m junctionlab webster                   # check simulated delay against Webster (about 20 s)
 ```

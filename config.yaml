@@ -43,8 +43,11 @@ control:
   all_red_s: 2
   cycle_default_s: 90
   min_green_s: 5
-  # Used by Webster's split method. PLACEHOLDER, replaced by the measured value in M4.
-  saturation_flow_vphpl: 1800
+  # Measured in M4 with `python -m junctionlab webster` (2026-11-18; SUMO 1.28, Krauss
+  # sigma 0.5, step 1 s, 50 km/h, cars only). Replaced the 1800 veh/h placeholder.
+  saturation_flow_vphpl: 1861
+  # Lost time per phase from the same run: effective green = green + amber - lost time.
+  lost_time_s: 5.75
 
 los:
   # HCM average delay thresholds (s/veh): upper bounds for A..E; above the last one is F.
@@ -57,6 +60,9 @@ los:
   backlog_growth_min_veh: 5
 
 webster:
+  # Test signal: 90 s cycle, 40 s green on the test approach = two-phase with equal greens.
+  cycle_s: 90
+  green_s: 40
   x_tested: [0.5, 0.7, 0.85]
   x_info_only: [0.95]
   margin_relative: 0.15         # pass if within +-15% or +-3 s, whichever is larger
