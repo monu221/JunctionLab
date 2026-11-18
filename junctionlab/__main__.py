@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from junctionlab.baseline import by_movement as baseline_by_movement
 from junctionlab.examples import EXAMPLES_DIR, list_examples, load_example
 from junctionlab.metrics import Stat, Summary
 from junctionlab.runner import run_scenario
@@ -49,22 +50,32 @@ def _fmt(stat: Stat | None, digits: int = 1) -> str:
 def print_summary(summary: Summary) -> None:
     print(f"\nResults over {len(summary.seeds)} seed(s): mean (min-max)")
     header = (
-        f"{'approach':<9}{'delay s/veh':>25}{'max queue m':>17}{'max queue veh':>16}"
-        f"{'throughput veh/h':>20}   LOS (seeds)"
+        f"{'approach':<9}{'control delay s/veh':>25}{'total delay s/veh':>22}"
+        f"{'max queue m':>16}{'max queue veh':>15}{'throughput veh/h':>20}   LOS (seeds)"
     )
     rule = "-" * (len(header) + 4)
     print(header)
     print(rule)
     for a in summary.approaches.values():
-        delay = _fmt(a.delay_s) + ("*" if a.delay_lower_bound else " ")
+        star = "*" if a.delay_lower_bound else " "
         print(
-            f"{a.arm:<9}{delay:>25}{_fmt(a.queue_m, 0):>17}{_fmt(a.queue_veh, 0):>16}"
+            f"{a.arm:<9}{_fmt(a.control_delay_s) + star:>25}{_fmt(a.delay_s) + star:>22}"
+            f"{_fmt(a.queue_m, 0):>16}{_fmt(a.queue_veh, 0):>15}"
             f"{_fmt(a.throughput_vph, 0):>20}   {a.los} ({a.los_range})"
         )
     j = summary.junction
     print(rule)
-    delay = _fmt(j.delay_s) + " "
-    print(f"{'junction':<9}{delay:>25}{'':>33}{_fmt(j.throughput_vph, 0):>20}   {j.los}")
+    print(
+        f"{'junction':<9}{_fmt(j.control_delay_s) + ' ':>25}{_fmt(j.delay_s) + ' ':>22}"
+        f"{'':>31}{_fmt(j.throughput_vph, 0):>20}   {j.los}"
+    )
+    if summary.baseline:
+        moves = baseline_by_movement(summary.baseline)
+        text = ", ".join(f"{m} {v:.1f}" for m, v in moves.items())
+        print(
+            f"\nControl delay = total delay - free-flow baseline ({text} s/veh); "
+            "LOS uses control delay."
+        )
 
     notes = [
         f"{a.arm}: LOS F because {', '.join(a.f_reasons)}"
@@ -125,12 +136,12 @@ def print_webster(report, cfg) -> None:
             print(f"  NOTE: config.yaml {name} = {used:g} differs from this measurement")
 
     print(
-        f"\nDelay per vehicle (s), {len(sat.by_seed_vph)} seeds; pass if within "
+        f"\nControl delay per vehicle (s), {len(sat.by_seed_vph)} seeds; pass if within "
         f"+-{report.margin_relative:.0%} or +-{report.margin_absolute_s:g} s, whichever is larger"
     )
     header = (
         f"{'x':>5}{'q veh/h':>9}{'green ratio':>13}{'Webster':>9}"
-        f"{'simulated mean (min-max)':>27}{'diff s':>8}{'diff %':>8}   result"
+        f"{'simulated control (min-max)':>29}{'total':>7}{'diff s':>8}{'diff %':>8}   result"
     )
     print(header)
     print("-" * (len(header) + 3))
@@ -138,12 +149,12 @@ def print_webster(report, cfg) -> None:
         result = ("pass" if c.passed else "FAIL") if c.tested else "info only"
         sim = _fmt(c.simulated_s)
         print(
-            f"{c.x:>5g}{c.q_vph:>9.0f}{c.green_ratio:>13.3f}{c.webster_s:>9.1f}{sim:>27}"
-            f"{c.diff_s:>+8.1f}{c.diff_pct:>+7.0f}%   {result}"
+            f"{c.x:>5g}{c.q_vph:>9.0f}{c.green_ratio:>13.3f}{c.webster_s:>9.1f}{sim:>29}"
+            f"{c.simulated_total_s.mean:>7.1f}{c.diff_s:>+8.1f}{c.diff_pct:>+7.0f}%   {result}"
         )
     print(
-        f"\nFree-flow background loss (no signal, {report.free_flow_q_vph:.0f} veh/h): "
-        f"{_fmt(report.free_flow_delay_s, 2)} s/veh"
+        f"\nFree-flow baseline (no signal, {report.free_flow_q_vph:.0f} veh/h): "
+        f"{_fmt(report.free_flow_delay_s, 2)} s/veh; control delay = total - baseline mean"
     )
     print("Overall: " + ("PASS" if report.all_passed else "FAIL"))
 

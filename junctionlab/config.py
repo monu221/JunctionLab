@@ -110,6 +110,11 @@ class Los(_Frozen):
         return table
 
 
+class Baseline(_Frozen):
+    demand_vph_per_movement: float = Field(gt=0)
+    duration_s: int = Field(gt=0)
+
+
 class Webster(_Frozen):
     cycle_s: float = Field(gt=0)
     green_s: float = Field(gt=0)
@@ -134,6 +139,7 @@ class Config(_Frozen):
     scenario_defaults: ScenarioDefaults
     control: Control
     los: Los
+    baseline: Baseline
     webster: Webster
     llm: Llm
 

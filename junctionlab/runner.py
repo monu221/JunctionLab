@@ -23,6 +23,7 @@ from pathlib import Path
 import traci
 
 from junctionlab import build, sumo_env
+from junctionlab.baseline import measure_baseline
 from junctionlab.build import RUNOUT_PREFIX
 from junctionlab.config import REPO_ROOT, Config, get_config
 from junctionlab.metrics import Summary, summarize
@@ -275,6 +276,7 @@ def run_scenario(
     run_dir = Path(run_dir or default_run_dir(scenario))
     seeds = list(seeds or cfg.simulation.seeds)
     files = prepare(scenario, run_dir, cfg)
+    baseline = measure_baseline(scenario, run_dir / "free_flow", cfg, seeds)
 
     def one(seed: int) -> SeedResult:
         return run_seed(scenario, files, run_dir, seed, cfg)
@@ -284,7 +286,7 @@ def run_scenario(
             results = list(pool.map(one, seeds))
     else:
         results = [one(s) for s in seeds]
-    summary = summarize(scenario, {r.seed: r.dir for r in results}, cfg)
+    summary = summarize(scenario, {r.seed: r.dir for r in results}, cfg, baseline)
     (run_dir / "summary.json").write_text(summary.to_json(), encoding="utf-8")
     return RunResult(
         scenario=scenario, dir=run_dir, net=files["net"], seeds=results, summary=summary

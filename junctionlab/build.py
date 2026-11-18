@@ -109,7 +109,9 @@ def _write(root: ET.Element, path: Path) -> Path:
     return path
 
 
-def _node_type(scenario: Scenario) -> str:
+def _node_type(scenario: Scenario, free_flow: bool = False) -> str:
+    if free_flow:
+        return "unregulated"  # no signal and no right of way: nobody waits for anybody
     c = scenario.control
     if isinstance(c, FixedTimeSignal):
         return "traffic_light"
@@ -126,14 +128,17 @@ def _edge_priority(scenario: Scenario, arm: Arm) -> int:
 
 
 def write_plain_network(
-    scenario: Scenario, out_dir: Path, extra_m: dict[str, float] | None = None
+    scenario: Scenario,
+    out_dir: Path,
+    extra_m: dict[str, float] | None = None,
+    free_flow: bool = False,
 ) -> tuple[Path, Path, Path]:
     """Plain XML files. `extra_m` lengthens arms so lanes outside the junction area
-    reach the full approach length."""
+    reach the full approach length. `free_flow` makes the junction unregulated."""
     speed = scenario.speed_limit_kmh / 3.6
 
     nodes = ET.Element("nodes")
-    ET.SubElement(nodes, "node", id=JUNCTION_ID, x="0", y="0", type=_node_type(scenario))
+    ET.SubElement(nodes, "node", id=JUNCTION_ID, x="0", y="0", type=_node_type(scenario, free_flow))
     for arm in scenario.approaches:
         dx, dy = _DIRECTION[arm]
         length = scenario.approach_length_m + (extra_m or {}).get(arm, 0.0)
@@ -167,7 +172,7 @@ def write_plain_network(
     )
 
 
-def build_network(scenario: Scenario, out_dir: Path) -> Path:
+def build_network(scenario: Scenario, out_dir: Path, free_flow: bool = False) -> Path:
     """Write plain XML and run netconvert. Returns the .net.xml path.
 
     Built twice: the junction area shortens each edge, so the second pass moves the arm end
@@ -176,7 +181,7 @@ def build_network(scenario: Scenario, out_dir: Path) -> Path:
     net = out_dir / "junction.net.xml"
     extra: dict[str, float] = {}
     for _ in range(2):
-        nod, edg, con = write_plain_network(scenario, out_dir, extra)
+        nod, edg, con = write_plain_network(scenario, out_dir, extra, free_flow)
         sumo_env.run(
             "netconvert",
             [

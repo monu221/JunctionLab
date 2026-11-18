@@ -129,14 +129,26 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
 | Measure | Definition | SUMO source |
 | --- | --- | --- |
-| Average delay | `timeLoss + departDelay` per measured vehicle (s/veh) | `tripinfo` output, plus the runner's record of vehicles still waiting to enter |
+| Total delay | `timeLoss + departDelay` per measured vehicle (s/veh) | `tripinfo` output, plus the runner's record of vehicles still waiting to enter |
+| Control delay | Total delay minus the free-flow baseline for the vehicle's approach and movement (s/veh). Used for LOS. | Total delay, and the baseline run below |
 | Maximum queue | Per approach: the maximum over the measurement period of the longest lane queue (m and vehicles) | E2 lane-area detector on every approach lane: `maxJamLengthInMeters`, `maxJamLengthInVehicles` |
 | Throughput | Vehicles passing the junction per hour during the measurement period | E1 loop 1 m before the stop line of every approach lane (`nVehContrib`) |
 | Demand | Measured vehicles generated per hour (this seed's Poisson draw, not the nominal value) | `tripinfo` plus vehicles that never entered |
 | Unfinished vehicles | Measured vehicles still in the network, or still waiting to enter, at the time cap | `tripinfo` with `--tripinfo-output.write-unfinished`, and `backlog.json` |
-| Level of service | Grade A to F from average delay and the overload rules below | Tables below |
+| Level of service | Grade A to F from average control delay and the overload rules below | Tables below |
 
-**Delay.** `timeLoss` is the time lost compared with driving at the desired speed. `departDelay` is the time a vehicle waited to be inserted. Adding `departDelay` means queues that back up beyond the network edge in overloaded cases are still counted. Exit legs flow freely, so this sum is close to the HCM control delay. It is not identical: it also includes small losses on the approach and exit legs outside the junction influence area. The Webster test cases report the timeLoss of a free-flow run to show that this background loss is close to zero.
+**Delay.** `timeLoss` is the time lost compared with driving at the desired speed. `departDelay` is the time a vehicle waited to be inserted. Adding `departDelay` means queues that back up beyond the network edge in overloaded cases are still counted. Even with no control at all, vehicles lose some time against their own desired speed. Krauss dawdling (sigma 0.5) makes drivers fall short of it, and turning vehicles slow down for the curve. This free-flow loss is about 2–5 s per vehicle, so it is subtracted.
+
+**Free-flow baseline.** The baseline is measured for each scenario on its own network:
+- The junction is made unregulated: no signal and no right of way.
+- Demand is low: 60 cars/h per approach and movement (default) for 30 minutes, with the same seeds.
+- The baseline is the mean `timeLoss + departDelay` per approach and movement (straight, left, right), averaged over the seeds.
+- Vehicles in a recorded collision are left out, because two streams can touch where they merge on an unregulated junction. This happens to about one vehicle per seed.
+- Bus movements use the baseline of the same approach and movement.
+
+**Control delay** is a vehicle's total delay minus the baseline for its approach and movement. It is close to the HCM control delay, and it is what the LOS tables grade. Total delay is still reported, and both are written to `summary.json` along with the baseline.
+
+For example 1 the baseline is about 2.8 s straight, 3.8 s left and 4.8 s right. The tight right-turn radius costs the most.
 
 **Measured vehicles.** Vehicles from the warm-up and measurement flows whose intended departure (`depart − departDelay`) falls in the measurement period. Run-out vehicles (`ro_`) are never measured.
 
@@ -146,7 +158,7 @@ Python writes the SUMO node, edge, connection, signal and route files, builds th
 
 **Throughput.** Counted at the stop line rather than from tripinfo, so it measures vehicles that actually crossed the junction during the measurement period.
 
-**Level of service.** The table is chosen by control type. Thresholds are average delay per vehicle, as in the US Highway Capacity Manual. They live in `config.yaml`.
+**Level of service.** The table is chosen by control type. Thresholds are average control delay per vehicle, as in the US Highway Capacity Manual. They live in `config.yaml`.
 
 | LOS | A | B | C | D | E | F |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -161,9 +173,9 @@ An approach is graded F regardless of delay when it is overloaded:
   - The insertion backlog (vehicles waiting to enter) grows by at least 5 vehicles from the start to the end of the measurement period (default).
 
 **Aggregation over seeds.** Every measure is reported per approach as mean, minimum and maximum over the 5 seeds.
-- The approach grade is taken from the mean delay. The overload rules use the mean throughput, demand and backlog growth.
+- The approach grade is taken from the mean control delay. The overload rules use the mean throughput, demand and backlog growth.
 - The grades of the individual seeds are shown as a range, for example C–D.
-- A junction row gives the vehicle-weighted mean delay and the total throughput. Signalised and all-way-stop junctions also get a junction LOS from that delay. A priority junction gets none, because HCM grades only its minor movements.
+- A junction row gives the vehicle-weighted mean control delay and total delay, and the total throughput. Signalised and all-way-stop junctions also get a junction LOS from the control delay. A priority junction gets none, because HCM grades only its minor movements.
 
 German practice uses the HBS (Handbuch für die Bemessung von Straßenverkehrsanlagen), which also grades A to F with its own thresholds. It is deferred: check its thresholds against the current HBS edition before adding them.
 
@@ -192,7 +204,7 @@ d = c(1 − λ)² / (2(1 − λx)) + x² / (2q(1 − x)) − 0.65 (c / q²)^(1/3
 - The test cases use demand q = x × saturation flow × λ.
 - Test cases at x = 0.5, 0.7 and 0.85 must agree with Webster within ±15% or ±3 s, whichever is larger.
 - x = 0.95 is reported for information only and is not tested.
-- The free-flow timeLoss (green all the time) is reported to show that background loss is close to zero.
+- A free-flow run on the same corridor, without a signal and at 60 veh/h, gives the baseline. The simulated control delay (total − baseline) is what gets compared with Webster.
 
 Some gap is expected, because SUMO models acceleration, start-up loss and driver behaviour that the formula simplifies. SUMO parameters are not tuned to hit the margin. If a case fails, the gap is reported and explained.
 
@@ -205,16 +217,20 @@ Run the check with `python -m junctionlab webster`.
 - **Lost time:** 5.75 s per cycle, from 19.26 vehicles released per cycle.
 - **Effective green:** 37.25 s, so λ = 0.414.
 
-| x | q (veh/h) | Webster (s) | Simulated, mean (min–max) (s) | Difference | Result |
-| --- | --- | --- | --- | --- | --- |
-| 0.50 | 385 | 21.1 | 22.6 (20.4–25.0) | +1.5 s (+7%) | pass |
-| 0.70 | 539 | 24.8 | 26.1 (25.1–27.7) | +1.3 s (+5%) | pass |
-| 0.85 | 655 | 32.4 | 31.5 (26.9–36.7) | −0.9 s (−3%) | pass |
-| 0.95 | 732 | 63.0 | 42.1 (32.5–48.2) | −20.9 s (−33%) | information only |
+| x | q (veh/h) | Webster (s) | Simulated control delay, mean (min–max) (s) | Total delay (s) | Difference | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.50 | 385 | 21.1 | 20.5 (18.2–22.9) | 22.6 | −0.6 s (−3%) | pass |
+| 0.70 | 539 | 24.8 | 23.9 (22.9–25.5) | 26.1 | −0.9 s (−3%) | pass |
+| 0.85 | 655 | 32.4 | 29.4 (24.8–34.5) | 31.5 | −3.0 s (−9%) | pass |
+| 0.95 | 732 | 63.0 | 40.0 (30.3–46.0) | 42.1 | −23.1 s (−37%) | information only |
 
-**Free-flow background loss: 3.1 s per vehicle** (2.9–3.4 s), measured without a signal at 385 veh/h. This is not close to zero. `timeLoss` is measured against each vehicle's own desired speed, and Krauss dawdling (sigma 0.5) makes drivers fall short of it all along the 400 m route. The simulated delays above include this background loss, so the signal-caused delay at x = 0.5–0.7 is about 1.5 s *below* Webster's value. That is still within the margin. The same background loss applies to every junction result.
+**Free-flow baseline: 2.1 s per vehicle** (2.0–2.2 s), from the corridor without a signal at 60 veh/h. It is subtracted, so the table compares control delay with Webster.
 
-**x = 0.95.** Simulation is 33% below Webster. Two causes are likely:
+The first M4 run compared total delay and measured the background loss at 385 veh/h, where it came out at 3.1 s. Part of that was car-following between vehicles, not free flow. That run's totals were 22.6, 26.1, 31.5 and 42.1 s, giving differences of +1.5, +1.3, −0.9 and −20.9 s.
+
+Simulated control delay is slightly below Webster at every tested x. The gap grows towards capacity but stays within the margin.
+
+**x = 0.95.** Simulation is 37% below Webster. Two causes are likely:
 - Webster's random-delay term assumes the queue has reached a steady state. So close to capacity, that state takes far longer than the one-hour measurement period to build up. Time-dependent formulas such as the HCM's use the analysis period for this reason.
 - Car-following on the 300 m approach smooths the Poisson arrivals into slightly more regular arrivals at the stop line, which reduces random delay.
 

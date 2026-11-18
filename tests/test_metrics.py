@@ -163,6 +163,30 @@ def test_seed_metrics_on_known_output(tmp_path):
     assert east.delay_s == 3 and not east.delay_lower_bound
 
 
+def test_control_delay_subtracts_baseline_per_movement(tmp_path):
+    cfg = cfg_with(warmup_s=60, measurement_s=120, runout_max_s=60)
+    s = EXAMPLES["t_junction_priority"].scenario()
+    write_seed(
+        tmp_path / "s1",
+        cfg,
+        trips=[
+            ("south_left_car.1", 70, 0, 25, 120),
+            ("south_right_car.2", 100, 1, 9, 150),
+        ],
+        e1=[(60, "south_in_0", 1), (120, "south_in_0", 1)],  # throughput = demand
+    )
+    baseline = {"south": {"left": 5.0, "right": 2.0}}
+    m = seed_metrics(s, tmp_path / "s1", cfg, baseline)["south"]
+    assert m.delay_s == (25 + 10) / 2
+    assert m.control_delay_s == (20 + 8) / 2
+    assert m.los == "B"  # 14 s control delay on the unsignalised table; total 17.5 would be C
+    summary = summarize(s, {1: tmp_path / "s1"}, cfg, baseline)
+    assert summary.approaches["south"].control_delay_s.mean == 14
+    assert summary.approaches["south"].delay_s.mean == 17.5
+    assert summary.baseline == baseline
+    assert '"control_delay_s"' in summary.to_json() and '"delay_s"' in summary.to_json()
+
+
 def test_queue_is_longest_lane_not_sum(tmp_path):
     cfg = cfg_with(warmup_s=60, measurement_s=120, runout_max_s=60)
     s = EXAMPLES["four_arm_signal"].scenario()

@@ -78,7 +78,9 @@ Recorded 2026-11-18, from the question round on the original plan.
 - **Measured values replace the placeholder (M4).** Saturation flow is 1,861 veh/h per lane, replacing 1,800. Lost time is 5.75 s per phase. Both now feed the Webster green splits (on effective green) and the signal v/c.
   - Effect on example 1: the greens stay 49 / 31 s, so delays, queues and LOS are unchanged. v/c rises slightly: north 0.408 → 0.418, east and west 0.403 → 0.428, south 0.306 → 0.314.
 - **Webster test signal:** 90 s cycle with 40 s green, matching a two-phase junction with equal greens (M4).
-- **Free-flow background loss** is 3.1 s per vehicle, caused by Krauss dawdling. It is included in all reported delays. Not yet decided: whether to report it or subtract it. See method.md section 4.
+- **Control delay (after M4).** LOS and the Webster comparison use control delay: total delay minus a free-flow baseline per approach and movement. The baseline comes from a low-demand run with the junction unregulated. Total delay stays in `summary.json` and in the output.
+  - Webster: the baseline is 2.1 s, and the differences are now −0.6, −0.9 and −3.0 s (all pass); x = 0.95 is −23.1 s.
+  - Example 1: east and west change from LOS D to C (34.1 and 34.5 s, just under the 35 s boundary). North's seed range widens to B–C.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 

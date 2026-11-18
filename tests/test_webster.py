@@ -67,7 +67,15 @@ def test_tested_cases_within_margin(report):
 
 
 def test_free_flow_background_loss_is_small(report):
-    assert report.free_flow_delay_s.mean < 5
+    assert 0 < report.free_flow_delay_s.mean < 5
+
+
+def test_compared_delay_is_control_delay(report):
+    for c in report.cases:
+        assert c.simulated_s.mean == pytest.approx(
+            c.simulated_total_s.mean - report.free_flow_delay_s.mean
+        )
+        assert c.diff_s == pytest.approx(c.simulated_s.mean - c.webster_s)
 
 
 def test_cli(tmp_path, capsys, report, monkeypatch):

@@ -141,8 +141,16 @@ def write_stop_line_loop(out_dir: Path, net: Path) -> Path:
 
 
 def run_sumo(
-    net: Path, routes: Path, additional: list[Path], seed_dir: Path, seed: int, cfg: Config
+    net: Path,
+    routes: Path,
+    additional: list[Path],
+    seed_dir: Path,
+    seed: int,
+    cfg: Config,
+    end_s: float | None = None,
+    extra_args: list[str] | None = None,
 ) -> Path:
+    """Plain headless run (no TraCI) up to end_s (default: the configured time cap)."""
     seed_dir.mkdir(parents=True, exist_ok=True)
     sim = cfg.simulation
     args = [
@@ -150,9 +158,10 @@ def run_sumo(
         "--route-files", str(routes),
         "--seed", str(seed),
         "--begin", "0",
-        "--end", str(sim.end_s),
+        "--end", f"{end_s if end_s is not None else sim.end_s:g}",
         "--step-length", f"{sim.step_length_s:g}",
         "--time-to-teleport", str(sim.time_to_teleport_s),
+        "--collision.action", "warn",
         "--tripinfo-output", str(seed_dir / "tripinfo.xml"),
         "--tripinfo-output.write-unfinished", "true",
         "--no-step-log", "true",
@@ -161,6 +170,7 @@ def run_sumo(
     ]  # fmt: skip
     if additional:
         args += ["--additional-files", ",".join(str(a) for a in additional)]
+    args += extra_args or []
     # Detector output paths are relative to the additional file, so copy it per seed.
     sumo_env.run("sumo", args, cwd=seed_dir)
     return seed_dir
@@ -274,7 +284,8 @@ class Case:
     q_vph: float
     green_ratio: float
     webster_s: float
-    simulated_s: Stat
+    simulated_s: Stat  # control delay = total - free-flow baseline (compared with Webster)
+    simulated_total_s: Stat
     diff_s: float
     diff_pct: float
     tested: bool
@@ -313,10 +324,15 @@ def run_check(out_dir: Path | None = None, config: Config | None = None) -> Webs
     lam = effective_green / w.cycle_s
     capacity = sat.saturation_flow_vph * lam
 
+    # Free-flow baseline first: same corridor, no signal, low demand.
+    free_q = cfg.baseline.demand_vph_per_movement
+    free = Stat.of(run_demand(out_dir / "free_flow", cfg, seeds, free_q, signal=False))
+
     cases = []
     for x, tested in [(x, True) for x in w.x_tested] + [(x, False) for x in w.x_info_only]:
         q = x * capacity
-        sim = Stat.of(run_demand(out_dir / f"x_{x:g}", cfg, seeds, q, signal=True))
+        total = run_demand(out_dir / f"x_{x:g}", cfg, seeds, q, signal=True)
+        sim = Stat.of([d - free.mean for d in total])
         ref = webster_delay(w.cycle_s, lam, q, x)
         diff = sim.mean - ref
         margin = max(w.margin_relative * ref, w.margin_absolute_s)
@@ -327,6 +343,7 @@ def run_check(out_dir: Path | None = None, config: Config | None = None) -> Webs
                 green_ratio=lam,
                 webster_s=ref,
                 simulated_s=sim,
+                simulated_total_s=Stat.of(total),
                 diff_s=diff,
                 diff_pct=100 * diff / ref,
                 tested=tested,
@@ -334,8 +351,6 @@ def run_check(out_dir: Path | None = None, config: Config | None = None) -> Webs
             )
         )
 
-    free_q = w.x_tested[0] * capacity
-    free = Stat.of(run_demand(out_dir / "free_flow", cfg, seeds, free_q, signal=False))
     report = WebsterReport(
         saturation=sat,
         cycle_s=w.cycle_s,

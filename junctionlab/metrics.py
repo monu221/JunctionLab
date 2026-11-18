@@ -4,7 +4,9 @@ Measured vehicles: warm-up/measurement flows (no "ro_" prefix) whose intended de
 (depart - departDelay) falls in the measurement window.
 
 Per approach and seed:
-- delay: mean of timeLoss + departDelay over measured vehicles. Vehicles still driving at
+- total delay: mean of timeLoss + departDelay over measured vehicles.
+- control delay: total delay minus the free-flow baseline of each vehicle's approach and
+  movement (baseline.py). LOS is graded from control delay. Vehicles still driving at
   the time cap count with their delay so far, and vehicles still waiting to enter count
   with their waiting time so far; both make the value a lower bound (flagged).
 - max queue: largest maxJamLengthInMeters / maxJamLengthInVehicles of any lane's E2
@@ -27,6 +29,8 @@ from junctionlab.build import DETECTOR_PERIOD_S, RUNOUT_PREFIX
 from junctionlab.config import LOS_GRADES, Config, get_config
 from junctionlab.scenario import FixedTimeSignal, PriorityRule, Scenario
 from junctionlab.signal import lane_flows_vph, phase_arms
+
+Baseline = dict[str, dict[str, float]]  # approach -> movement -> free-flow s/veh
 
 
 @dataclass(frozen=True)
@@ -124,7 +128,8 @@ class SeedApproach:
     finished: int
     unfinished: int
     never_inserted: int
-    delay_s: float | None
+    delay_s: float | None  # total delay
+    control_delay_s: float | None
     throughput_vph: float
     demand_vph: float
     queue_m: float
@@ -144,9 +149,13 @@ class SeedApproach:
         return self.backlog_end - self.backlog_start
 
 
-def _delays_from_tripinfo(path: Path, win: Window) -> dict[str, list[tuple[float, bool]]]:
-    """Per approach: (delay, finished) of each measured vehicle that has entered."""
-    out: dict[str, list[tuple[float, bool]]] = defaultdict(list)
+def _movement_of_vehicle(vehicle_id: str) -> str:
+    return vehicle_id.split(".")[0].split("_")[1]  # "north_left_car.3" -> "left"
+
+
+def _delays_from_tripinfo(path: Path, win: Window) -> dict[str, list[tuple[float, bool, str]]]:
+    """Per approach: (delay, finished, movement) of each measured vehicle that has entered."""
+    out: dict[str, list[tuple[float, bool, str]]] = defaultdict(list)
     for t in ET.parse(path).getroot().iter("tripinfo"):
         vid = t.get("id")
         if vid.startswith(RUNOUT_PREFIX):
@@ -155,7 +164,8 @@ def _delays_from_tripinfo(path: Path, win: Window) -> dict[str, list[tuple[float
         if float(t.get("depart")) - depart_delay not in win:
             continue
         delay = float(t.get("timeLoss")) + depart_delay
-        out[_arm_of_vehicle(vid)].append((delay, float(t.get("arrival")) >= 0))
+        finished = float(t.get("arrival")) >= 0
+        out[_arm_of_vehicle(vid)].append((delay, finished, _movement_of_vehicle(vid)))
     return out
 
 
@@ -163,10 +173,13 @@ def _backlog(path: Path, win: Window, end_time_s: float):
     """Waiting-to-enter delays of measured vehicles that never entered, and the backlog
     count per approach at the start and end of the window."""
     data = json.loads(path.read_text(encoding="utf-8"))
-    waiting: dict[str, list[float]] = defaultdict(list)
+    waiting: dict[str, list[tuple[float, str]]] = defaultdict(list)
     for v in data["never_inserted"]:
-        if not v["id"].startswith(RUNOUT_PREFIX) and v["first_seen_s"] in win:
-            waiting[_arm_of_vehicle(v["id"])].append(end_time_s - v["first_seen_s"])
+        vid = v["id"]
+        if not vid.startswith(RUNOUT_PREFIX) and v["first_seen_s"] in win:
+            waiting[_arm_of_vehicle(vid)].append(
+                (end_time_s - v["first_seen_s"], _movement_of_vehicle(vid))
+            )
     times = data["times_s"]
 
     def at(t: float, arm: str) -> int:
@@ -184,9 +197,14 @@ def _detector_intervals(path: Path, win: Window):
 
 
 def seed_metrics(
-    scenario: Scenario, seed_dir: Path, cfg: Config | None = None
+    scenario: Scenario,
+    seed_dir: Path,
+    cfg: Config | None = None,
+    baseline: Baseline | None = None,
 ) -> dict[str, SeedApproach]:
+    """Measures per approach for one seed. Without a baseline, control delay = total delay."""
     cfg = cfg or get_config()
+    baseline = baseline or {}
     win = measurement_window(cfg)
     run = json.loads((seed_dir / "run.json").read_text(encoding="utf-8"))
     trips = _delays_from_tripinfo(seed_dir / "tripinfo.xml", win)
@@ -205,15 +223,19 @@ def seed_metrics(
     v_c = signal_v_c(scenario, cfg) if isinstance(scenario.control, FixedTimeSignal) else {}
     result = {}
     for arm in scenario.approaches:
-        delays = [d for d, _ in trips[arm]] + waiting[arm]
+        free = baseline.get(arm, {})
+        vehicles = [(d, mv) for d, _, mv in trips[arm]] + waiting[arm]
+        delays = [d for d, _ in vehicles]
+        control = [d - free.get(mv, 0.0) for d, mv in vehicles]
         start, end = backlog_ends.get(arm, (0, 0))
         m = SeedApproach(
             arm=arm,
             vehicles=len(delays),
-            finished=sum(f for _, f in trips[arm]),
-            unfinished=sum(not f for _, f in trips[arm]),
+            finished=sum(f for _, f, _ in trips[arm]),
+            unfinished=sum(not f for _, f, _ in trips[arm]),
             never_inserted=len(waiting[arm]),
             delay_s=statistics.fmean(delays) if delays else None,
+            control_delay_s=statistics.fmean(control) if control else None,
             throughput_vph=crossed[arm] / win.hours,
             demand_vph=len(delays) / win.hours,
             queue_m=queue_m[arm],
@@ -223,7 +245,13 @@ def seed_metrics(
             v_c=v_c.get(arm),
         )
         m.los, m.f_reasons = grade(
-            scenario, cfg, m.delay_s, m.throughput_vph, m.demand_vph, m.backlog_growth, m.v_c
+            scenario,
+            cfg,
+            m.control_delay_s,
+            m.throughput_vph,
+            m.demand_vph,
+            m.backlog_growth,
+            m.v_c,
         )
         result[arm] = m
     return result
@@ -249,7 +277,8 @@ class Stat:
 @dataclass
 class ApproachSummary:
     arm: str
-    delay_s: Stat | None
+    control_delay_s: Stat | None  # LOS basis
+    delay_s: Stat | None  # total delay
     queue_m: Stat
     queue_veh: Stat
     throughput_vph: Stat
@@ -272,7 +301,8 @@ class ApproachSummary:
 
 @dataclass
 class JunctionSummary:
-    delay_s: Stat | None
+    control_delay_s: Stat | None
+    delay_s: Stat | None  # total delay
     throughput_vph: Stat
     los: str  # signalised and all-way stop only; "-" for a priority rule
 
@@ -283,15 +313,21 @@ class Summary:
     junction: JunctionSummary
     seeds: list[int]
     warnings: list[str]
+    baseline: Baseline = field(default_factory=dict)  # free-flow s/veh per approach/movement
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2)
 
 
-def summarize(scenario: Scenario, seed_dirs: dict[int, Path], cfg: Config | None = None) -> Summary:
-    """Aggregate per-seed measures as mean and range. LOS is graded from the means."""
+def summarize(
+    scenario: Scenario,
+    seed_dirs: dict[int, Path],
+    cfg: Config | None = None,
+    baseline: Baseline | None = None,
+) -> Summary:
+    """Aggregate per-seed measures as mean and range. LOS is graded from mean control delay."""
     cfg = cfg or get_config()
-    per_seed = {seed: seed_metrics(scenario, d, cfg) for seed, d in seed_dirs.items()}
+    per_seed = {seed: seed_metrics(scenario, d, cfg, baseline) for seed, d in seed_dirs.items()}
     seeds = list(per_seed)
     limit = cfg.geometry.queue_warning_share * scenario.approach_length_m
     warnings = []
@@ -300,13 +336,14 @@ def summarize(scenario: Scenario, seed_dirs: dict[int, Path], cfg: Config | None
     for arm in scenario.approaches:
         ms = [per_seed[s][arm] for s in seeds]
         delay = Stat.of([m.delay_s for m in ms])
+        control = Stat.of([m.control_delay_s for m in ms])
         throughput = Stat.of([m.throughput_vph for m in ms])
         demand = Stat.of([m.demand_vph for m in ms])
         growth = statistics.fmean(m.backlog_growth for m in ms)
         los, reasons = grade(
             scenario,
             cfg,
-            delay.mean if delay else None,
+            control.mean if control else None,
             throughput.mean,
             demand.mean,
             growth,
@@ -326,6 +363,7 @@ def summarize(scenario: Scenario, seed_dirs: dict[int, Path], cfg: Config | None
             )
         approaches[arm] = ApproachSummary(
             arm=arm,
+            control_delay_s=control,
             delay_s=delay,
             queue_m=Stat.of([m.queue_m for m in ms]),
             queue_veh=Stat.of([m.queue_veh for m in ms]),
@@ -339,25 +377,33 @@ def summarize(scenario: Scenario, seed_dirs: dict[int, Path], cfg: Config | None
             spillback_seeds=spill,
         )
 
-    def junction_delay(seed: int) -> float | None:
+    def junction_delay(seed: int, attr: str) -> float | None:
         ms = per_seed[seed].values()
         n = sum(m.vehicles for m in ms)
-        return sum((m.delay_s or 0) * m.vehicles for m in ms) / n if n else None
+        return sum((getattr(m, attr) or 0) * m.vehicles for m in ms) / n if n else None
 
-    j_delay = Stat.of([junction_delay(s) for s in seeds])
+    j_delay = Stat.of([junction_delay(s, "delay_s") for s in seeds])
+    j_control = Stat.of([junction_delay(s, "control_delay_s") for s in seeds])
     j_los = "-"
-    if j_delay and not isinstance(scenario.control, PriorityRule):
+    if j_control and not isinstance(scenario.control, PriorityRule):
         table = (
             cfg.los.signalised
             if isinstance(scenario.control, FixedTimeSignal)
             else cfg.los.unsignalised
         )
-        j_los = los_grade(j_delay.mean, table)
+        j_los = los_grade(j_control.mean, table)
     junction = JunctionSummary(
+        control_delay_s=j_control,
         delay_s=j_delay,
         throughput_vph=Stat.of(
             [sum(m.throughput_vph for m in per_seed[s].values()) for s in seeds]
         ),
         los=j_los,
     )
-    return Summary(approaches=approaches, junction=junction, seeds=seeds, warnings=warnings)
+    return Summary(
+        approaches=approaches,
+        junction=junction,
+        seeds=seeds,
+        warnings=warnings,
+        baseline=baseline or {},
+    )
