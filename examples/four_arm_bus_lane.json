@@ -1,0 +1,14 @@
+{
+  "description": "Four-arm signal junction with a 90 s cycle and two lanes per approach. The west approach also has a bus lane carrying 12 buses/h. 700 veh/h from the west, 600 veh/h from the east, 450 veh/h from the north and 400 veh/h from the south.",
+  "draft": {
+    "name": "Four-arm signal with west bus lane",
+    "junction_type": "four_arm",
+    "approaches": {
+      "north": {"demand_vph": 450, "lane_count": 2},
+      "east": {"demand_vph": 600, "lane_count": 2},
+      "south": {"demand_vph": 400, "lane_count": 2},
+      "west": {"demand_vph": 700, "lane_count": 2, "bus_lane": true, "bus_demand_bph": 12}
+    },
+    "control": {"kind": "signal", "cycle_s": 90}
+  }
+}

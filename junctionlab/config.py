@@ -55,9 +55,24 @@ class Vehicles(_Frozen):
 Movement = Literal["left", "through", "right"]
 
 
+def _check_100(shares: dict[str, float]) -> dict[str, float]:
+    if abs(sum(shares.values()) - 100) > 0.1 or any(v < 0 for v in shares.values()):
+        raise ValueError(f"shares must be >= 0 and sum to 100, got {shares}")
+    return shares
+
+
+class TurningShareDefaults(_Frozen):
+    four_arm: dict[Movement, float]
+    t_major: dict[Literal["through", "into_stem"], float]
+    t_stem: dict[Literal["left", "right"], float]
+
+    _sum_100 = field_validator("four_arm", "t_major", "t_stem")(_check_100)
+
+
 class ScenarioDefaults(_Frozen):
     lanes: tuple[tuple[Movement, ...], ...] = Field(min_length=1, max_length=4)
     heavy_vehicle_share_pct: float = Field(ge=0, le=30)
+    turning_shares_pct: TurningShareDefaults
 
 
 class Control(_Frozen):
@@ -67,6 +82,7 @@ class Control(_Frozen):
     all_red_s: float = Field(ge=0)
     cycle_default_s: float = Field(gt=0)
     min_green_s: float = Field(gt=0)
+    saturation_flow_vphpl: float = Field(gt=0)
 
     @property
     def intergreen_s(self) -> float:

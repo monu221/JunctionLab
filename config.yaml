@@ -30,6 +30,11 @@ scenario_defaults:
   # Lane use per approach, listed from the leftmost lane to the rightmost.
   lanes: [[left, through], [through, right]]
   heavy_vehicle_share_pct: 5
+  # Turning shares in % when the text gives none.
+  turning_shares_pct:
+    four_arm: {left: 15, through: 70, right: 15}
+    t_major: {through: 80, into_stem: 20}   # major-road approaches of a T-junction
+    t_stem: {left: 50, right: 50}
 
 control:
   major_road_default: north-south   # T-junction: the stem is always minor
@@ -38,6 +43,8 @@ control:
   all_red_s: 2
   cycle_default_s: 90
   min_green_s: 5
+  # Used by Webster's split method. PLACEHOLDER, replaced by the measured value in M4.
+  saturation_flow_vphpl: 1800
 
 los:
   # HCM average delay thresholds (s/veh): upper bounds for A..E; above the last one is F.

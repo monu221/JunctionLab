@@ -1,0 +1,14 @@
+{
+  "description": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
+  "draft": {
+    "name": "Four-arm fixed-time signal",
+    "junction_type": "four_arm",
+    "approaches": {
+      "north": {"demand_vph": 800, "lane_count": 2},
+      "east": {"demand_vph": 500, "lane_count": 2},
+      "south": {"demand_vph": 600, "lane_count": 2},
+      "west": {"demand_vph": 500, "lane_count": 2}
+    },
+    "control": {"kind": "signal", "cycle_s": 90}
+  }
+}

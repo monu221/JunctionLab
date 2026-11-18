@@ -46,8 +46,24 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 | Minimum green | 5 s |
 | Intergreen | 3 s amber + 2 s all-red |
 | Green splits | Webster, from critical flow ratios |
+| Saturation flow (for green splits) | 1,800 veh/h per lane: placeholder, replaced by the measured value in M4 |
 | 4-arm phase plan | 2-phase |
 | Major road (priority rule) | north–south |
+| Lane use from a lane count | Leftmost lane left + through, rightmost lane through + right, middle lanes through. A single lane takes all movements. |
+| Turning shares, 4-arm | 15% left, 70% through, 15% right |
+| Turning shares, T-junction | Major road: 80% through, 20% into the stem. Stem: 50% left, 50% right |
+| Bus direction | All buses straight |
+
+**Required.** Junction type, demand on every approach and control type must come from the text. There is no sensible default for them, so the app asks the user to rephrase.
+
+**Modelling rules.**
+
+- Approaches are named after the arm vehicles come from. Traffic drives on the right.
+- Lanes are listed from leftmost to rightmost. Movements must not cross between lanes. Every movement with a share above 0 needs a lane.
+- The bus lane is an extra lane to the right of the general-traffic lanes. It counts towards the 4-lane maximum and towards the lane count of the exit leg.
+- On a T-junction, the stem is the arm opposite the missing arm. Default lane uses lose movements that would lead to the missing arm.
+- No bus lane and no bus demand mean the feature isn't used. They are not marked as assumed.
+- When green splits are not given, they are marked as assumed and derived with Webster when the run is built, using the saturation flow above.
 
 Anything the text does not state gets a default from `config.yaml`, and the form highlights assumed fields so the user can check them. The form edits the scenario only, never the config. If the text cannot be interpreted, the app asks the user to rephrase instead of guessing.
 
