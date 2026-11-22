@@ -1,45 +1,45 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:15:31+00:00",
+  "recorded_utc": "2026-11-22T22:35:49+00:00",
   "text": "Four-arm signal junction with a 90 s cycle and two lanes per approach. The west approach also has a bus lane carrying 12 buses/h. 700 veh/h from the west, 600 veh/h from the east, 450 veh/h from the north and 400 veh/h from the south.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-1e5b552a-5f1a-4ddf-a0e7-a0ce85e85023",
+      "id": "chatcmpl-ef86473d-4b49-4fc3-8fae-d2d0d8a46770",
       "object": "chat.completion",
-      "created": 1795385731,
+      "created": 1795386949,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":450,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":400,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":700,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":true,\"bus_demand_bph\":12,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":450,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":400,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":700,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":true,\"bus_demand_bph\":12,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.217888885,
-        "prompt_tokens": 1904,
-        "prompt_time": 0.166515286,
-        "completion_tokens": 846,
-        "completion_time": 1.7496586870000002,
-        "total_tokens": 2750,
-        "total_time": 1.916173973,
+        "queue_time": 0.218412735,
+        "prompt_tokens": 2315,
+        "prompt_time": 0.075527216,
+        "completion_tokens": 566,
+        "completion_time": 1.291623538,
+        "total_tokens": 2881,
+        "total_time": 1.367150754,
         "prompt_tokens_details": {
           "cached_tokens": 512
         },
         "completion_tokens_details": {
-          "reasoning_tokens": 548
+          "reasoning_tokens": 264
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_9241e9962b",
+      "system_fingerprint": "fp_c868cf1eaa",
       "x_groq": {
-        "id": "req_01m82n88fse2zrvzekq6kx45fw",
-        "seed": 1009916324
+        "id": "req_01m82pdenzezsrbgpt1qh1420m",
+        "seed": 468329237
       },
       "service_tier": "on_demand"
     }

@@ -1,42 +1,42 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:15:49+00:00",
+  "recorded_utc": "2026-11-22T22:36:08+00:00",
   "text": "Signalised crossroads, 100 second cycle, one approach at a time. Peak 15-minute counts: from the north 25 left, 150 straight, 25 right; from the south 20 left, 120 straight, 20 right; from the east 100 vehicles, a third of them turning right and the rest going straight; from the west 90 vehicles. Single lane on each arm, 50 km/h. There is a pedestrian crossing on the west arm.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-1b57a38e-f0ce-4ce2-8a94-921b59dd89eb",
+      "id": "chatcmpl-e68f9ab8-5ac3-4280-a11a-91be279f60a8",
       "object": "chat.completion",
-      "created": 1795385749,
+      "created": 1795386969,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\n  \"understood\": true,\n  \"unclear\": [],\n  \"notes\": [\n    \"Converted 15\u2011minute counts to hourly demand by multiplying by 4.\"\n  ],\n  \"name\": null,\n  \"junction_type\": \"four_arm\",\n  \"speed_limit_kmh\": 50,\n  \"approach_length_m\": null,\n  \"approaches\": {\n    \"north\": {\n      \"demand_vph\": 800,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 12.5,\n        \"through\": 75,\n        \"right\": 12.5\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"south\": {\n      \"demand_vph\": 640,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 12.5,\n        \"through\": 75,\n        \"right\": 12.5\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"east\": {\n      \"demand_vph\": 400,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 0,\n        \"through\": 66.6667,\n        \"right\": 33.3333\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"west\": {\n      \"demand_vph\": 360,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    }\n  },\n  \"control\": {\n    \"kind\": \"signal\",\n    \"cycle_s\": 100,\n    \"phase_plan\": \"four_phase_split\",\n    \"green_s\": null,\n    \"major_road\": null\n  }\n}"
+            "content": "{\n  \"understood\": true,\n  \"unclear\": [],\n  \"notes\": [\n    \"Pedestrian crossing on the west arm is not represented in the schema.\",\n    \"15\u2011minute vehicle counts were multiplied by 4 to obtain hourly demand.\"\n  ],\n  \"interpreted\": [\n    {\n      \"arm\": \"north\",\n      \"field_name\": \"demand_vph\",\n      \"note\": \"15\u2011minute count of 200 vehicles converted to hourly demand (\u00d74) = 800 vph.\"\n    },\n    {\n      \"arm\": \"north\",\n      \"field_name\": \"turning_shares_pct\",\n      \"note\": \"Turning shares calculated from 15\u2011minute counts (25 left, 150 straight, 25 right).\"\n    },\n    {\n      \"arm\": \"south\",\n      \"field_name\": \"demand_vph\",\n      \"note\": \"15\u2011minute count of 160 vehicles converted to hourly demand (\u00d74) = 640 vph.\"\n    },\n    {\n      \"arm\": \"south\",\n      \"field_name\": \"turning_shares_pct\",\n      \"note\": \"Turning shares calculated from 15\u2011minute counts (20 left, 120 straight, 20 right).\"\n    },\n    {\n      \"arm\": \"east\",\n      \"field_name\": \"demand_vph\",\n      \"note\": \"15\u2011minute count of 100 vehicles converted to hourly demand (\u00d74) = 400 vph.\"\n    },\n    {\n      \"arm\": \"east\",\n      \"field_name\": \"turning_shares_pct\",\n      \"note\": \"One third of vehicles turn right, the rest go straight; no left turns.\"\n    },\n    {\n      \"arm\": \"west\",\n      \"field_name\": \"demand_vph\",\n      \"note\": \"15\u2011minute count of 90 vehicles converted to hourly demand (\u00d74) = 360 vph.\"\n    }\n  ],\n  \"name\": null,\n  \"junction_type\": \"four_arm\",\n  \"speed_limit_kmh\": 50,\n  \"approach_length_m\": null,\n  \"approaches\": {\n    \"north\": {\n      \"demand_vph\": 800,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 12.5,\n        \"through\": 75,\n        \"right\": 12.5\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"south\": {\n      \"demand_vph\": 640,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 12.5,\n        \"through\": 75,\n        \"right\": 12.5\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"east\": {\n      \"demand_vph\": 400,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": {\n        \"left\": 0,\n        \"through\": 66.66666666666666,\n        \"right\": 33.33333333333333\n      },\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"west\": {\n      \"demand_vph\": 360,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    }\n  },\n  \"control\": {\n    \"kind\": \"signal\",\n    \"cycle_s\": 100,\n    \"phase_plan\": \"four_phase_split\",\n    \"green_s\": null,\n    \"major_road\": null\n  }\n}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.218485374,
-        "prompt_tokens": 1940,
-        "prompt_time": 0.092771867,
-        "completion_tokens": 1238,
-        "completion_time": 2.569542626,
-        "total_tokens": 3178,
-        "total_time": 2.6623144930000002,
+        "queue_time": 0.09509341,
+        "prompt_tokens": 2351,
+        "prompt_time": 0.091731747,
+        "completion_tokens": 1973,
+        "completion_time": 4.094267165,
+        "total_tokens": 4324,
+        "total_time": 4.185998912,
         "completion_tokens_details": {
-          "reasoning_tokens": 713
+          "reasoning_tokens": 1073
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_bb691ea66b",
+      "system_fingerprint": "fp_d577f40f11",
       "x_groq": {
-        "id": "req_01m82n8sepetkss0ybb9q66ewr",
-        "seed": 1983942183
+        "id": "req_01m82pdyzsebhaq19z3jhzjca1",
+        "seed": 967879767
       },
       "service_tier": "on_demand"
     }

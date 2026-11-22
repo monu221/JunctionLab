@@ -136,8 +136,8 @@ def test_partial_shares_on_t_junction(limiter):
 @pytest.mark.parametrize(
     ("name", "reason"),
     [
-        ("unclear_demand", "emand"),
-        ("not_a_junction", "does not describe a road junction"),
+        ("unclear_demand", "traffic"),
+        ("not_a_junction", "road junction"),
         ("invalid_cycle", "too short"),
         ("max_tokens", "did not fit"),  # Groq answers 400 when strict output is cut off
     ],

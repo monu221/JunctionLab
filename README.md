@@ -29,6 +29,8 @@ python -m junctionlab interpret "Crossroads, 800 veh/h from the north, ..." --ou
 
 `interpret` runs on the **free Groq tier** and needs `GROQ_API_KEY` in `.env` (see `.env.example`) or in the environment. The Streamlit app (M6) will use the same path. It uses at most 5 calls per session and 50 per day, and Groq's own rate limits also apply. Everything else works without a key.
 
+If the model had to choose a reading of the demand (for example, counts with no time period), `--run` stops and shows its note. Correct the description, or add `--confirm-demand` to accept that reading.
+
 To use Anthropic instead, set `llm.provider: anthropic` in `config.yaml` and add `ANTHROPIC_API_KEY`. This is a paid API.
 
 Tests make no API calls. To run the one live test:

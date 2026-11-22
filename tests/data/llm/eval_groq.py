@@ -65,7 +65,7 @@ CASES = [
     {
         "kind": "vague",
         "text": "Traffic lights at a crossroads, about 600 cars an hour on each road.",
-        # "Each road" could mean 600 per approach or 300: it must be rejected or flagged.
+        # "Each road" could mean 600 per approach or 300: rejected, or demand interpreted.
         "expect": {"rejected_or_flagged": True},
     },
     {
@@ -77,6 +77,7 @@ CASES = [
             "junction_type": "four_arm",
             "control": "signal",
             "cycle_s": 80,
+            "interpreted_demand": True,  # the counts have no time period
             "demand": {"north": 600, "south": 400, "east": 300, "west": 400},
             "shares": {
                 "north": shares(16.67, 66.67, 16.67),
@@ -190,15 +191,21 @@ def run_case(case, client, cfg, limiter) -> dict:
         "outcome": "parsed",
         "assumed": list(s.assumed),
         "notes": r.notes,
+        "interpreted": s.interpreted,
+        "needs_confirmation": list(s.needs_confirmation),
         "scenario": json.loads(s.model_dump_json()),
     }
     if e.get("rejected"):
         out["problems"] = ["should have been rejected"]
     elif e.get("rejected_or_flagged"):
-        flagged = any("each road" in n.lower() or "assum" in n.lower() for n in r.notes)
-        out["problems"] = [] if flagged else ["ambiguous volume accepted without a flag"]
+        flagged = len(s.needs_confirmation) == len(s.approaches)
+        out["problems"] = [] if flagged else ["ambiguous demand not marked interpreted"]
     else:
         out["problems"] = check(s, e)
+        if e.get("interpreted_demand") and len(s.needs_confirmation) != len(s.approaches):
+            out["problems"].append("ambiguous demand not marked interpreted")
+        if not e.get("interpreted_demand") and s.needs_confirmation:
+            out["problems"].append("clear demand wrongly marked interpreted")
     out["correct"] = not out["problems"]
     return out
 

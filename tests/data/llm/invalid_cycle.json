@@ -1,45 +1,45 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:16:58+00:00",
+  "recorded_utc": "2026-11-22T22:37:16+00:00",
   "text": "Crossroads with traffic lights on a 15 second cycle, 300 veh/h on every approach.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-a121bc47-8203-42c3-ab00-065293c4c243",
+      "id": "chatcmpl-5cee8d35-a36e-430f-97f4-e1be3e3d1941",
       "object": "chat.completion",
-      "created": 1795385818,
+      "created": 1795387037,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":15,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":15,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.288884107,
-        "prompt_tokens": 1862,
-        "prompt_time": 0.005061595,
-        "completion_tokens": 768,
-        "completion_time": 1.654724101,
-        "total_tokens": 2630,
-        "total_time": 1.6597856960000001,
+        "queue_time": 0.218523827,
+        "prompt_tokens": 2273,
+        "prompt_time": 0.077730539,
+        "completion_tokens": 681,
+        "completion_time": 1.529568348,
+        "total_tokens": 2954,
+        "total_time": 1.607298887,
         "prompt_tokens_details": {
-          "cached_tokens": 1792
+          "cached_tokens": 512
         },
         "completion_tokens_details": {
-          "reasoning_tokens": 470
+          "reasoning_tokens": 379
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_5a93aea882",
+      "system_fingerprint": "fp_b1dd3e7a63",
       "x_groq": {
-        "id": "req_01m82naxeyeawtyw4s980mgcy7",
-        "seed": 1548646003
+        "id": "req_01m82pg3vpe1t89b7xxxje2afq",
+        "seed": 1659888509
       },
       "service_tier": "on_demand"
     }

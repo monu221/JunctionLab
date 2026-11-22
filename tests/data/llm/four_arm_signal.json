@@ -1,45 +1,45 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:14:57+00:00",
+  "recorded_utc": "2026-11-22T22:35:15+00:00",
   "text": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-1f564f4b-8078-4729-bc22-7a077390209f",
+      "id": "chatcmpl-b9afe900-bdbb-4cec-844f-00ad044a1af0",
       "object": "chat.completion",
-      "created": 1795385697,
+      "created": 1795386916,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":800,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":800,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.094732433,
-        "prompt_tokens": 1888,
-        "prompt_time": 0.100133421,
-        "completion_tokens": 500,
-        "completion_time": 1.114830824,
-        "total_tokens": 2388,
-        "total_time": 1.214964245,
+        "queue_time": 0.217888833,
+        "prompt_tokens": 2299,
+        "prompt_time": 0.180002843,
+        "completion_tokens": 943,
+        "completion_time": 2.4278960019999998,
+        "total_tokens": 3242,
+        "total_time": 2.6078988450000002,
         "prompt_tokens_details": {
           "cached_tokens": 512
         },
         "completion_tokens_details": {
-          "reasoning_tokens": 202
+          "reasoning_tokens": 641
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_7a4ab09ae4",
+      "system_fingerprint": "fp_90620edd96",
       "x_groq": {
-        "id": "req_01m82n7823ezprmfcmjvy17af2",
-        "seed": 101100452
+        "id": "req_01m82pccedezfb716xmvcb4g76",
+        "seed": 968454979
       },
       "service_tier": "on_demand"
     }

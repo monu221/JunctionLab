@@ -44,6 +44,7 @@ def interp(approaches, ctrl, *, jt, name=None, understood=True, unclear=(), note
         "understood": understood,
         "unclear": list(unclear),
         "notes": list(notes),
+        "interpreted": [],
         "name": name,
         "junction_type": jt,
         "speed_limit_kmh": None,

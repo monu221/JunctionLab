@@ -9,12 +9,20 @@ Two layers:
   so the form can highlight it. `Scenario.with_values()` applies form edits and clears the
   assumed mark of every edited field.
 
+Every field has one of three states (`Scenario.field_state`):
+- stated: the text gave it, or the user set it in the form.
+- interpreted: the text allowed several readings and the model chose one. The model's note is
+  kept in `Scenario.interpreted`. Interpreted demand must be confirmed before a run.
+- assumed: a default. `assumed` lists the ones the form highlights; `implicit` lists defaults
+  that are not highlighted (an unused bus lane, a plan fixed by the geometry).
+
 Conventions: right-hand traffic; an approach is named after the arm vehicles come from;
 lanes are listed from the leftmost to the rightmost; shares are in percent.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
@@ -33,6 +41,16 @@ _TURN_OFFSET = {"left": 1, "through": 2, "right": 3}  # right-hand traffic, cloc
 MAX_LANES = 4
 SHARE_TOLERANCE_PCT = 0.1
 CYCLE_TOLERANCE_S = 0.5
+DEMAND_FIELDS = ("demand_vph", "bus_demand_bph")
+FieldState = Literal["stated", "interpreted", "assumed"]
+
+
+class UnconfirmedDemand(ValueError):
+    """A run was requested while interpreted demand is still unconfirmed."""
+
+    def __init__(self, paths: tuple[str, ...]):
+        self.paths = paths
+        super().__init__("Confirm the interpreted demand before running: " + ", ".join(paths))
 
 
 def destination(arm: Arm, movement: Movement) -> Arm:
@@ -145,6 +163,15 @@ class Scenario(_Strict):
     assumed: tuple[str, ...] = Field(
         default=(), description="Dotted paths of fields filled from defaults."
     )
+    implicit: tuple[str, ...] = Field(
+        default=(), description="Defaults that the form does not highlight."
+    )
+    interpreted: dict[str, str] = Field(
+        default_factory=dict, description="Dotted path -> the model's note on its reading."
+    )
+    confirmed: tuple[str, ...] = Field(
+        default=(), description="Interpreted fields the user has accepted."
+    )
 
     # ---- derived geometry
 
@@ -217,6 +244,43 @@ class Scenario(_Strict):
     def is_assumed(self, path: str) -> bool:
         return path in self.assumed
 
+    def field_paths(self) -> list[str]:
+        """Dotted path of every field that has a state."""
+        paths = ["junction_type", "speed_limit_kmh", "approach_length_m"]
+        for arm in self.approaches:
+            paths += [f"approaches.{arm}.{name}" for name in Approach.model_fields]
+        paths += [f"control.{name}" for name in type(self.control).model_fields]
+        return paths
+
+    def field_state(self, path: str) -> FieldState:
+        if path in self.interpreted:
+            return "interpreted"
+        return "assumed" if path in self.assumed or path in self.implicit else "stated"
+
+    def field_states(self) -> dict[str, FieldState]:
+        return {path: self.field_state(path) for path in self.field_paths()}
+
+    @property
+    def needs_confirmation(self) -> tuple[str, ...]:
+        """Interpreted demand fields the user has not confirmed yet."""
+        return tuple(
+            path
+            for path in self.interpreted
+            if path.rsplit(".", 1)[-1] in DEMAND_FIELDS and path not in self.confirmed
+        )
+
+    def require_confirmed(self) -> None:
+        if self.needs_confirmation:
+            raise UnconfirmedDemand(self.needs_confirmation)
+
+    def confirm(self, paths: Iterable[str] | None = None) -> Scenario:
+        """Accept interpreted fields as read (all that need confirmation if none are named)."""
+        chosen = tuple(self.needs_confirmation if paths is None else paths)
+        unknown = [path for path in chosen if path not in self.interpreted]
+        if unknown:
+            raise ValueError(f"not interpreted fields: {unknown}")
+        return self.model_copy(update={"confirmed": tuple(dict.fromkeys(self.confirmed + chosen))})
+
     def with_values(self, updates: dict[str, Any], config: Config | None = None) -> Scenario:
         """Apply edits by dotted path (e.g. 'control.cycle_s') and mark them as confirmed.
 
@@ -230,11 +294,16 @@ class Scenario(_Strict):
             for key in parents:
                 node = node[key]
             node[leaf] = value
-        data["assumed"] = [
-            a
-            for a in self.assumed
-            if not any(a == p or a.startswith(p + ".") or p.startswith(a + ".") for p in updates)
-        ]
+
+        def untouched(a: str) -> bool:
+            return not any(
+                a == p or a.startswith(p + ".") or p.startswith(a + ".") for p in updates
+            )
+
+        data["assumed"] = [a for a in self.assumed if untouched(a)]
+        data["implicit"] = [a for a in self.implicit if untouched(a)]
+        data["interpreted"] = {a: n for a, n in self.interpreted.items() if untouched(a)}
+        data["confirmed"] = [a for a in self.confirmed if untouched(a)]
         cfg = config or get_config()
         if "control.green_s" in data["assumed"]:
             data["control"]["green_s"] = None  # re-derived below from the edited values
@@ -274,6 +343,9 @@ class ScenarioDraft(_Strict):
     approach_length_m: float | None = None
     approaches: dict[Arm, ApproachDraft]
     control: ControlDraft
+    interpreted: dict[str, str] = Field(
+        default_factory=dict, description="Dotted path -> the model's note on its reading."
+    )
 
     @model_validator(mode="after")
     def _arm_count(self) -> ScenarioDraft:
@@ -310,6 +382,7 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
     """Fill a draft's gaps from config and record each filled field as assumed."""
     cfg = config or get_config()
     assumed: list[str] = []
+    implicit: list[str] = []
 
     def pick(value: Any, default: Any, path: str) -> Any:
         if value is None:
@@ -339,6 +412,12 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
             )
             lanes = _strip(base, allowed)
         bus_demand = a.bus_demand_bph if a.bus_demand_bph is not None else 0
+        if a.bus_lane is None:
+            implicit.append(f"{p}.bus_lane")
+        if a.bus_demand_bph is None:
+            implicit.append(f"{p}.bus_demand_bph")
+        if bus_demand <= 0 and a.bus_right_share_pct is None:
+            implicit.append(f"{p}.bus_right_share_pct")
         approaches[arm] = {
             "demand_vph": a.demand_vph,
             "lanes": lanes,
@@ -368,6 +447,8 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
         control["cycle_s"] = pick(c.cycle_s, cfg.control.cycle_default_s, "control.cycle_s")
         if draft.junction_type == "t_junction":
             control["phase_plan"] = c.phase_plan or "two_phase"
+            if c.phase_plan is None:
+                implicit.append("control.phase_plan")
         else:
             control["phase_plan"] = pick(
                 c.phase_plan, cfg.control.four_arm_phase_plan_default, "control.phase_plan"
@@ -378,6 +459,8 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
         if stem is not None:
             # On a T-junction the major road is fixed by geometry: the arms other than the stem.
             control["major_road"] = c.major_road or road_of(_other(stem))
+            if c.major_road is None:
+                implicit.append("control.major_road")
         else:
             control["major_road"] = pick(
                 c.major_road, cfg.control.major_road_default, "control.major_road"
@@ -394,7 +477,9 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
         ),
         "approaches": approaches,
         "control": control,
-        "assumed": sorted(assumed),
+        "assumed": sorted(a for a in assumed if a not in draft.interpreted),
+        "implicit": sorted(a for a in implicit if a not in draft.interpreted),
+        "interpreted": dict(draft.interpreted),
     }
     return _validate_with_greens(data, cfg)
 

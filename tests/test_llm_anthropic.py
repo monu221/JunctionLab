@@ -149,6 +149,7 @@ def _interp(**kw):
         "understood": True,
         "unclear": [],
         "notes": [],
+        "interpreted": [],
         "name": None,
         "junction_type": "four_arm",
         "speed_limit_kmh": None,
@@ -200,7 +201,7 @@ def test_wrong_arm_count_is_an_interpretation_error():
 @pytest.mark.parametrize(
     ("name", "reason"),
     [
-        ("unclear_demand", "volumes"),
+        ("unclear_demand", "traffic"),
         ("not_a_junction", "does not describe a road junction"),
         ("invalid_cycle", "too short"),
         ("refusal", "declined"),

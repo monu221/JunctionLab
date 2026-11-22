@@ -11,7 +11,7 @@ from junctionlab.baseline import by_movement as baseline_by_movement
 from junctionlab.examples import EXAMPLES_DIR, list_examples, load_example
 from junctionlab.metrics import Stat, Summary
 from junctionlab.runner import run_scenario
-from junctionlab.scenario import Scenario
+from junctionlab.scenario import Scenario, UnconfirmedDemand
 
 
 def _load(target: str) -> Scenario:
@@ -39,6 +39,18 @@ def _describe(s: Scenario) -> None:
         print(f"  signal: cycle {s.control.cycle_s:g} s, {s.control.phase_plan}, greens {greens} s")
     if s.assumed:
         print(f"  assumed (defaults): {len(s.assumed)} field(s)")
+
+
+def _print_unconfirmed(s: Scenario) -> None:
+    print("\nNot run: the demand below is the model's reading of the text.")
+    for path in s.needs_confirmation:
+        print(f"  {path} = {_value(s, path):g}: {s.interpreted[path]}")
+    print("Correct the description, or repeat with --confirm-demand to accept this reading.")
+
+
+def _value(s: Scenario, path: str) -> float:
+    _, arm, name = path.split(".")
+    return getattr(s.approaches[arm], name)
 
 
 def _fmt(stat: Stat | None, digits: int = 1) -> str:
@@ -93,7 +105,12 @@ def print_summary(summary: Summary) -> None:
 
 def cmd_run(args: argparse.Namespace) -> int:
     scenario = _load(args.target)
+    if args.confirm_demand:
+        scenario = scenario.confirm()
     _describe(scenario)
+    if scenario.needs_confirmation:
+        _print_unconfirmed(scenario)
+        return 4
     seeds = [int(x) for x in args.seeds.split(",")] if args.seeds else None
     result = run_scenario(scenario, run_dir=args.out, seeds=seeds)
 
@@ -194,6 +211,8 @@ def cmd_interpret(args: argparse.Namespace) -> int:
     _describe(s)
     for path in s.assumed:
         print(f"    assumed: {path}")
+    for path, note in s.interpreted.items():
+        print(f"    interpreted: {path}: {note}")
     for note in result.notes:
         print(f"  note: {note}")
     if args.out:
@@ -201,6 +220,13 @@ def cmd_interpret(args: argparse.Namespace) -> int:
         args.out.write_text(s.model_dump_json(indent=2) + "\n", encoding="utf-8")
         print(f"Scenario written to {args.out}")
     if args.run:
+        if args.confirm_demand:
+            s = s.confirm()
+        try:
+            s.require_confirmed()
+        except UnconfirmedDemand:
+            _print_unconfirmed(s)
+            return 4
         result_run = run_scenario(s)
         print(f"\nRun directory: {result_run.dir}")
         print_summary(result_run.summary)
@@ -222,6 +248,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--seeds", help="comma-separated seeds (default: config.yaml)")
     run.add_argument("--out", type=Path, help="run directory (default: runs/<time>_<name>)")
     run.add_argument("--strict", action="store_true", help="exit 1 if any run has a warning")
+    run.add_argument(
+        "--confirm-demand", action="store_true", help="accept the model's reading of the demand"
+    )
     run.set_defaults(func=cmd_run)
     web = sub.add_parser("webster", help="check simulated delay against Webster's formula")
     web.add_argument("--out", type=Path, help="output directory (default: runs/<time>_webster)")
@@ -231,6 +260,9 @@ def main(argv: list[str] | None = None) -> int:
     text.add_argument("--out", type=Path, help="write the scenario JSON here")
     text.add_argument("--run", action="store_true", help="simulate the scenario afterwards")
     text.add_argument("--record", type=Path, help="save the API response for replay in tests")
+    text.add_argument(
+        "--confirm-demand", action="store_true", help="accept the model's reading of the demand"
+    )
     text.set_defaults(func=cmd_interpret)
     args = parser.parse_args(argv)
     # Model notes can hold characters a Windows console cannot encode.

@@ -1,42 +1,45 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:16:41+00:00",
+  "recorded_utc": "2026-11-22T22:36:59+00:00",
   "text": "Write me a poem about the sea.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-690df912-4905-4278-89e9-cd93caaa89d7",
+      "id": "chatcmpl-8eeab0fa-6643-40ff-ade9-5ad94efd0e80",
       "object": "chat.completion",
-      "created": 1795385801,
+      "created": 1795387020,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":false,\"unclear\":[\"Input does not describe a road junction.\"],\"notes\":[],\"name\":null,\"junction_type\":null,\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":null,\"east\":null,\"south\":null,\"west\":null},\"control\":{\"kind\":null,\"cycle_s\":null,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\"understood\":false,\"unclear\":[\"The input is a request for a poem about the sea, not a road junction description.\"],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":null,\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":null,\"east\":null,\"south\":null,\"west\":null},\"control\":{\"kind\":null,\"cycle_s\":null,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.218870999,
-        "prompt_tokens": 1850,
-        "prompt_time": 0.073088677,
-        "completion_tokens": 416,
-        "completion_time": 0.885817119,
-        "total_tokens": 2266,
-        "total_time": 0.958905796,
+        "queue_time": 0.055292176,
+        "prompt_tokens": 2261,
+        "prompt_time": 0.013736886,
+        "completion_tokens": 358,
+        "completion_time": 1.046465297,
+        "total_tokens": 2619,
+        "total_time": 1.060202183,
+        "prompt_tokens_details": {
+          "cached_tokens": 2048
+        },
         "completion_tokens_details": {
-          "reasoning_tokens": 312
+          "reasoning_tokens": 240
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_c868cf1eaa",
+      "system_fingerprint": "fp_f640395b96",
       "x_groq": {
-        "id": "req_01m82nadhte1q8xhexkw447pq7",
-        "seed": 294617104
+        "id": "req_01m82pfkygeqzrzzgfgcvake6v",
+        "seed": 1183610859
       },
       "service_tier": "on_demand"
     }

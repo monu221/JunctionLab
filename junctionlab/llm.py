@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ from junctionlab.scenario import (
     ARMS,
     MOVEMENTS,
     ApproachDraft,
+    Arm,
     ControlDraft,
     JunctionType,
     MajorRoad,
@@ -127,6 +129,43 @@ class ControlText(_Llm):
     major_road: MajorRoad | None = Field(description="Road with right of way (priority rule).")
 
 
+ApproachField = Literal[
+    "demand_vph",
+    "lane_count",
+    "lanes",
+    "turning_shares_pct",
+    "heavy_vehicle_share_pct",
+    "bus_lane",
+    "bus_demand_bph",
+    "bus_right_share_pct",
+]
+ScenarioField = Literal[
+    "junction_type",
+    "speed_limit_kmh",
+    "approach_length_m",
+    "control.kind",
+    "control.cycle_s",
+    "control.phase_plan",
+    "control.green_s",
+    "control.major_road",
+]
+APPROACH_FIELDS = frozenset(ApproachField.__args__)
+
+
+class InterpretedField(_Llm):
+    arm: Arm | None = Field(
+        description="The approach this applies to. Null if it applies to every approach, or "
+        "if the field is not an approach field."
+    )
+    field_name: Literal[ApproachField, ScenarioField] = Field(
+        description="The field you chose a value for."
+    )
+    note: str = Field(
+        description="One sentence: the words in the text, the reading you chose, and the other "
+        "possible reading."
+    )
+
+
 class Interpretation(_Llm):
     understood: bool = Field(
         description="False if the text does not describe a road junction this tool can model."
@@ -137,6 +176,10 @@ class Interpretation(_Llm):
     )
     notes: list[str] = Field(
         description="Conversions you made and stated details the schema cannot hold."
+    )
+    interpreted: list[InterpretedField] = Field(
+        description="Every field where the text supports more than one reasonable value and "
+        "you chose one. Empty if none."
     )
     name: str | None = Field(description="Short name for the scenario.")
     junction_type: JunctionType | None
@@ -179,11 +222,32 @@ can be mapped), set understood to false and explain in unclear. Never list optio
 in unclear (lanes, turning shares, signal timing, phase plan, major road, speed, length, \
 heavy vehicles): leave them null and the tool fills them.
 
+Report your readings in interpreted. Add an entry whenever the text supports more than one \
+reasonable value for a field and you chose one. Two common cases for demand: a volume given \
+"per street" or "per direction pair" may be for one direction or for both together, and \
+counts with no time period may be hourly or for another period. List every approach affected, \
+or use a null arm if it is all of them. Do not list exact arithmetic on stated facts (scaling \
+counts whose period is stated, adding movements, the remainder to 100), and do not list a value \
+just because it is rounded or says "about". Facts that are simply missing are not interpreted.
+
 Put details you cannot represent (pedestrians, cycle lanes, parking, time of day) in notes \
 rather than dropping them silently. Keep unclear and notes short, one sentence per item."""
 
 
 # --------------------------------------------------------------------------- conversion
+
+NO_PERIOD_NOTE = (
+    "The text gives traffic counts with no time period; they were read as vehicles per hour, "
+    "but they could cover another period."
+)
+_RUSH_HOUR = re.compile(r"\brush[\s-]*hours?\b", re.I)
+_CYCLE_TIME = re.compile(r"\d+(\.\d+)?[\s-]*(minutes?|mins?)\b[\s-]*(signal\s+)?cycle", re.I)
+_PERIOD_TEXT = re.compile(
+    r"\bhours?\b|\bhourly\b|\bhrs?\b|/\s*h\b|\bvph\b|\bminutes?\b|\bmins?\b|\bper day\b|\bdaily\b",
+    re.IGNORECASE,
+)
+_DEMAND_TEXT = re.compile(r"demand|volume|traffic|veh", re.IGNORECASE)
+_JUNCTION_TEXT = re.compile(r"junction.?type|t-junction|four.arm|\barms?\b", re.IGNORECASE)
 
 
 def _shares(
@@ -215,18 +279,23 @@ def to_draft(interp: Interpretation) -> tuple[ScenarioDraft, list[str]]:
     notes = list(interp.notes)
     if not interp.understood:
         raise InterpretationError(interp.unclear or ["the text does not describe a junction"])
-    problems = list(interp.unclear)
-    if interp.junction_type is None:
+    given = {arm: getattr(interp.approaches, arm) for arm in ARMS}
+    given = {arm: a for arm, a in given.items() if a is not None}
+    no_demand = [arm for arm, a in given.items() if a.demand_vph is None]
+    # Python reports missing demand once, so drop the model's own lines about it.
+    problems = [u for u in interp.unclear if not (no_demand and _DEMAND_TEXT.search(u))]
+    if interp.junction_type is None and not any(_JUNCTION_TEXT.search(u) for u in problems):
         problems.append("the junction type is not stated")
     if interp.control.kind is None:
         problems.append("the traffic control (signal, priority or all-way stop) is not stated")
-    given = {arm: getattr(interp.approaches, arm) for arm in ARMS}
-    given = {arm: a for arm, a in given.items() if a is not None}
     if not given:
         problems.append("no approaches with traffic are described")
-    for arm, a in given.items():
-        if a.demand_vph is None:
-            problems.append(f"the traffic on the {arm} approach is not stated")
+    if no_demand:
+        arms = (
+            ", ".join(no_demand[:-1]) + " and " + no_demand[-1] if no_demand[1:] else no_demand[0]
+        )
+        plural = "approaches" if no_demand[1:] else "approach"
+        problems.append(f"the traffic on the {arms} {plural} is not stated")
     if problems:
         raise InterpretationError(_dedupe(problems))
 
@@ -251,6 +320,7 @@ def to_draft(interp: Interpretation) -> tuple[ScenarioDraft, list[str]]:
             speed_limit_kmh=interp.speed_limit_kmh,
             approach_length_m=interp.approach_length_m,
             approaches=approaches,
+            interpreted=_interpreted_paths(interp, approaches),
             control=ControlDraft(
                 kind=c.kind,
                 cycle_s=c.cycle_s,
@@ -262,6 +332,47 @@ def to_draft(interp: Interpretation) -> tuple[ScenarioDraft, list[str]]:
     except ValidationError as e:
         raise InterpretationError(_messages(e)) from e
     return draft, notes
+
+
+def _interpreted_paths(
+    interp: Interpretation, approaches: dict[str, ApproachDraft]
+) -> dict[str, str]:
+    """Dotted path -> note, for fields that hold a value the model actually read."""
+    out: dict[str, str] = {}
+    for item in interp.interpreted:
+        name = item.field_name
+        if name not in APPROACH_FIELDS:
+            value: Any = interp
+            for key in name.split("."):
+                value = getattr(value, key)
+            if value is not None:
+                out.setdefault(name, item.note)
+            continue
+        for arm in [item.arm] if item.arm else list(approaches):
+            draft = approaches.get(arm)
+            if draft is None:
+                continue
+            if name == "lane_count":  # the scenario holds lanes, not a count
+                if draft.lane_count is not None or draft.lanes is not None:
+                    out.setdefault(f"approaches.{arm}.lanes", item.note)
+            elif getattr(draft, name) is not None:
+                out.setdefault(f"approaches.{arm}.{name}", item.note)
+    return out
+
+
+def _flag_missing_period(text: str, draft: ScenarioDraft) -> ScenarioDraft:
+    """Mark demand as interpreted when the text states no time period at all.
+
+    A check in code, because the model does not report this case reliably.
+    """
+    if _PERIOD_TEXT.search(_CYCLE_TIME.sub(" ", _RUSH_HOUR.sub(" ", text))):
+        return draft
+    interpreted = dict(draft.interpreted)
+    for arm, a in draft.approaches.items():
+        interpreted.setdefault(f"approaches.{arm}.demand_vph", NO_PERIOD_NOTE)
+        if a.bus_demand_bph:
+            interpreted.setdefault(f"approaches.{arm}.bus_demand_bph", NO_PERIOD_NOTE)
+    return draft.model_copy(update={"interpreted": interpreted})
 
 
 def _messages(e: ValidationError) -> list[str]:
@@ -563,6 +674,7 @@ def interpret(
     (limiter or CallLimiter(cfg)).reserve(session)
     interp = call_llm(text, client, cfg)
     draft, notes = to_draft(interp)
+    draft = _flag_missing_period(text, draft)
     try:
         scenario = resolve(draft, cfg)
     except ValidationError as e:

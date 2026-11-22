@@ -16,7 +16,7 @@
         },
         {
           "type": "text",
-          "text": "{\"understood\": false, \"unclear\": [\"The text does not describe a road junction.\"], \"notes\": [], \"name\": null, \"junction_type\": null, \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": null, \"east\": null, \"south\": null, \"west\": null}, \"control\": {\"kind\": null, \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+          "text": "{\"understood\": false, \"unclear\": [\"The text does not describe a road junction.\"], \"notes\": [], \"interpreted\": [], \"name\": null, \"junction_type\": null, \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": null, \"east\": null, \"south\": null, \"west\": null}, \"control\": {\"kind\": null, \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
         }
       ],
       "stop_reason": "end_turn",

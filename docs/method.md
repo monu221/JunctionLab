@@ -21,7 +21,7 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 - Limits: 5 calls per session and 50 per day. The daily count is kept in `var/llm_calls.json` by UTC date. A call is counted before it is made, so failed calls count too. Descriptions over 2,000 characters are rejected before any call.
 - The API key comes from Streamlit secrets, or from the environment or `.env`: `GROQ_API_KEY` or `ANTHROPIC_API_KEY`, depending on the provider.
 - Tests replay recorded responses through a mock transport, so CI makes no calls. Groq recordings are real (`tests/data/llm/record_groq.py`). Anthropic fixtures are synthetic.
-- **Live check (2026-11-22, `tests/data/llm/eval_groq.py`).** 10 descriptions scored against hand-written expected values: 9 correct. The miss: "about 600 cars an hour on each road" was read as 600 veh/h per approach, with a note but no assumed-field highlight. This is one small sample, not an accuracy estimate.
+- **Live check (2026-11-22, `tests/data/llm/eval_groq.py`).** 10 descriptions scored against hand-written expected values: 10 correct after the field-state change (9 before). The prompt and the time-period check were written with these failures in view, so 5 further unseen descriptions were also run, and all 5 were handled safely. This is a small sample, not an accuracy estimate.
 
 | Field | Example | Rules |
 | --- | --- | --- |
@@ -36,6 +36,18 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 | Heavy vehicle share | 5% | 0 to 30% |
 | Control | Fixed-time signal, priority rule, or all-way stop | See below |
 | Duration | 10 min warm-up, 60 min measured, up to 15 min run-out | See section 2 |
+
+**Field states.** Every scenario field has one of three states:
+
+| State | Meaning | In the form |
+| --- | --- | --- |
+| Stated | The text gave the value, or the user set it | Plain |
+| Interpreted | The text allowed more than one reading and the model chose one | Highlighted, with the model's note |
+| Assumed | A default from `config.yaml` | Highlighted, except features that are simply unused, such as no bus lane |
+
+- The model lists its readings in the `interpreted` field of its answer. Exact arithmetic on stated facts is not an interpretation: scaling counts whose period is stated, adding movements, or taking the remainder to 100%.
+- Code also marks demand as interpreted when the text states no time period at all, because the model does not report this reliably.
+- **Interpreted demand must be confirmed before a run.** `run_scenario` refuses to start until then. Editing a demand value makes it stated. Other interpreted fields are highlighted but do not block the run.
 
 **Fixed-time signal.** Needs a cycle length. Phase plans:
 

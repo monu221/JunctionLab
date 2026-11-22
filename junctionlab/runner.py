@@ -271,7 +271,11 @@ def run_scenario(
     config: Config | None = None,
     parallel: bool = True,
 ) -> RunResult:
-    """Build the SUMO files and run every seed. Results land in run_dir/seed_<n>/."""
+    """Build the SUMO files and run every seed. Results land in run_dir/seed_<n>/.
+
+    Raises UnconfirmedDemand if the model's reading of the demand is not confirmed yet.
+    """
+    scenario.require_confirmed()
     cfg = config or get_config()
     run_dir = Path(run_dir or default_run_dir(scenario))
     seeds = list(seeds or cfg.simulation.seeds)
