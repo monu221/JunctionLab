@@ -1,33 +1,47 @@
 {
-  "source": "synthetic",
+  "source": "live",
+  "recorded_utc": "2026-11-22T22:16:24+00:00",
   "text": "A busy signalised crossroads near the station, worst in the evening rush hour.",
   "response": {
     "status": 200,
     "body": {
-      "id": "msg_synthetic_06",
-      "type": "message",
-      "role": "assistant",
-      "model": "claude-haiku-5-5",
-      "content": [
+      "id": "chatcmpl-7d192975-dfdf-4fae-b16f-bc215400fe0d",
+      "object": "chat.completion",
+      "created": 1795385785,
+      "model": "openai/gpt-oss-120b",
+      "choices": [
         {
-          "type": "thinking",
-          "thinking": "",
-          "signature": "synthetic"
-        },
-        {
-          "type": "text",
-          "text": "{\"understood\": true, \"unclear\": [\"The traffic volumes on the approaches are not stated.\"], \"notes\": [], \"name\": null, \"junction_type\": \"four_arm\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": null, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": null, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": null, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": null, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"signal\", \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\"understood\":true,\"unclear\":[\"Demand values not provided for approaches.\"],\"notes\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":null,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":null,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":null,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":null,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":null,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
         }
       ],
-      "stop_reason": "end_turn",
-      "stop_sequence": null,
-      "stop_details": null,
       "usage": {
-        "input_tokens": 1850,
-        "output_tokens": 420,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0
-      }
+        "queue_time": 0.284647074,
+        "prompt_tokens": 1858,
+        "prompt_time": 0.449654455,
+        "completion_tokens": 626,
+        "completion_time": 1.309236811,
+        "total_tokens": 2484,
+        "total_time": 1.758891266,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 321
+        }
+      },
+      "usage_breakdown": null,
+      "system_fingerprint": "fp_c3da0d4bb9",
+      "x_groq": {
+        "id": "req_01m82n9wqteyrrvba0vv8dhp15",
+        "seed": 1304802537
+      },
+      "service_tier": "on_demand"
     }
   }
 }

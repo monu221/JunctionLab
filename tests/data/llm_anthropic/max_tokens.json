@@ -1,0 +1,28 @@
+{
+  "source": "synthetic",
+  "text": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_10",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [\""
+        }
+      ],
+      "stop_reason": "max_tokens",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

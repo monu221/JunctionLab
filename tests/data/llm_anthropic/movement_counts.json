@@ -1,0 +1,33 @@
+{
+  "source": "synthetic",
+  "text": "Signalised crossroads, 100 second cycle, one approach at a time. Peak 15-minute counts: from the north 25 left, 150 straight, 25 right; from the south 20 left, 120 straight, 20 right; from the east 100 vehicles, a third of them turning right and the rest going straight; from the west 90 vehicles. Single lane on each arm, 50 km/h. There is a pedestrian crossing on the west arm.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_04",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "synthetic"
+        },
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [\"15-minute counts multiplied by 4 to get vehicles per hour.\", \"The pedestrian crossing on the west arm is not modelled.\"], \"name\": \"Signalised crossroads (from peak counts)\", \"junction_type\": \"four_arm\", \"speed_limit_kmh\": 50, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": 800, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": {\"left\": 12.5, \"through\": 75, \"right\": 12.5}, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": 400, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": {\"left\": 0, \"through\": null, \"right\": 33.3}, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": 640, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": {\"left\": 12.5, \"through\": 75, \"right\": 12.5}, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": 360, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"signal\", \"cycle_s\": 100, \"phase_plan\": \"four_phase_split\", \"green_s\": null, \"major_road\": null}}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

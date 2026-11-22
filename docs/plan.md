@@ -15,7 +15,7 @@ At the end of every milestone: commit, push, check that CI passes on Ubuntu and 
 | M2 | SUMO generation | Node, edge, connection, signal and route files; `netconvert`; 5-seed headless runs; time cap; no teleports; gridlock warning | Golden-file tests pass; every control type smoke-runs |
 | M3 | Measures | tripinfo and E2 parsing, depart-time window, unfinished vehicles, per-approach mean and range, both LOS tables, overload rules | Unit tests with recorded SUMO output pass |
 | M4 | Webster check | Saturation flow and lost time measured from a saturated run; x = 0.5, 0.7, 0.85 (+0.95 for information) | Report produced; margin test passes or the gap is explained (no tuning) |
-| M5 | Text to scenario | Claude Haiku 5.5 with structured output into the `Scenario` schema; rephrase on failure; call limits | Tests on recorded responses pass, with no live calls in CI |
+| M5 | Text to scenario | Configurable LLM (Groq by default, Anthropic optional) with structured output into the `Scenario` schema; rephrase on failure; call limits | Tests on recorded responses pass, with no live calls in CI |
 | M6 | Streamlit app | Text → editable form (assumed fields highlighted) → run → results table and Plotly charts → sumolib network drawing; copy and compare | Manual check plus app smoke test |
 | M7 | PDF report | One page with fpdf2 and matplotlib charts | PDF generated in tests |
 | M8 | Examples and docs | 3 bundled scenarios that work offline, README, deployment to Streamlit Community Cloud | Examples run in CI without an API key |
@@ -56,8 +56,8 @@ Recorded 2026-11-18, from the question round on the original plan.
 15. **Junction drawing.** Render the real SUMO network geometry with sumolib.
 16. **PDF charts.** matplotlib.
 17. **LLM limit.** 5 calls per session and 50 per day globally, with the counter in a local file. It resets on server restart, which is acceptable; the API spending limit is the hard limit.
-18. **Model.** Claude Haiku 5.5, with the model ID in config. Check the current Anthropic docs for the structured-output syntax before writing the LLM code (M5).
-19. **Deployment.** Streamlit Community Cloud. The API key is read from Streamlit secrets, with `.env` as the local fallback.
+18. **Model.** Originally Claude Haiku 5.5. Replaced as the default by Groq on 2026-11-22 (see "LLM provider" below). Model IDs are in config.
+19. **Deployment.** Streamlit Community Cloud. The provider's API key is read from Streamlit secrets, with `.env` as the local fallback.
 20. **Bundled examples.**
     - A 4-arm fixed-time junction.
     - A T-junction with priority rule.
@@ -84,7 +84,13 @@ Recorded 2026-11-18, from the question round on the original plan.
 - **LLM call (M5).**
   - Messages API `create` with `output_config.format` (JSON schema built by `anthropic.transform_schema`), not `messages.parse`. That way the stop reason is checked before parsing, and a refused or cut-off answer is not reported as a schema error.
   - Effort `medium`, the Haiku 5.5 default, set in config.
-  - The recorded responses in `tests/data/llm/` are synthetic for now (`"source": "synthetic"`), in the exact API response format. They are to be re-recorded live once the API key is in `.env`.
+  - These settings still apply to the optional Anthropic path. Its fixtures in `tests/data/llm_anthropic/` are synthetic, because no Anthropic key was used.
+- **LLM provider (2026-11-22).** No paid API: `llm.provider` in `config.yaml` is `groq` (default) or `anthropic`.
+  - Groq model: `openai/gpt-oss-120b`, a production model that supports strict structured outputs. The request uses the same JSON schema as the Anthropic path.
+  - A 429 is not retried. The user is told how long to wait, using `retry-after`.
+  - `tests/data/llm/` now holds real Groq responses (`"source": "live"`), recorded with `record_groq.py`. The 429 and refusal cases are constructed in the tests, because they cannot be triggered on demand.
+  - Real responses showed that the model listed optional details as `unclear`, which rejected a valid example. The prompt now limits `unclear` to the required facts.
+  - Known gaps from the 10-description check (method §1): an ambiguous volume is accepted without being marked as assumed, and a stated detail such as a pedestrian crossing can be dropped from the notes.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 

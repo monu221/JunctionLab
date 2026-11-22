@@ -1,0 +1,33 @@
+{
+  "source": "synthetic",
+  "text": "Crossroads with traffic lights on a 15 second cycle, 300 veh/h on every approach.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_08",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "synthetic"
+        },
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [], \"name\": null, \"junction_type\": \"four_arm\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"signal\", \"cycle_s\": 15, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

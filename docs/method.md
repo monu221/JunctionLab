@@ -7,17 +7,21 @@ Decisions behind this method are recorded in [plan.md](plan.md#decisions).
 The LLM returns a scenario in a fixed JSON schema. Python validates it with Pydantic before anything runs.
 
 **The LLM call (M5).**
-- One call to Claude Haiku 5.5 (model ID in `config.yaml`) through the Messages API with structured output (`output_config.format`, a JSON schema). The API constrains the answer to the schema.
+- One call to the provider set by `llm.provider` in `config.yaml`, with the answer constrained to a JSON schema:
+  - **Groq (default, free tier):** `openai/gpt-oss-120b` through chat completions, with `response_format` in strict `json_schema` mode.
+  - **Anthropic (optional, paid):** Claude Haiku 5.5 through the Messages API, with `output_config.format`.
 - The schema (`Interpretation` in `junctionlab/llm.py`) has one field per arm and per movement. Structured output needs every object closed, so it cannot use the free-form maps of the scenario model. Every field is present and set to null when the text does not state it.
 - The instructions tell the model to fill only what the text states and leave the rest null. It must not guess, because a guess would hide an assumption that the form would otherwise highlight.
 - Conversions the model makes are listed in `notes`: counts for another period scaled to an hour, counts per movement summed into demand and turning shares. So are stated details the schema cannot hold, such as pedestrians.
 - Python then turns the answer into a draft and fills defaults as below:
   - Turning shares: if two of three are given, the third is what is left to 100%. Movements that lead to a missing arm are 0. If fewer than two are given, the defaults are used and marked as assumed.
   - If the model says the text is not a junction, if a required fact is missing, or if the result fails validation, the user is asked to rephrase. The message lists every problem found.
-  - A refused or cut-off answer, or one that does not fit the schema, is also a rephrase case. API errors and a missing key are reported separately; the bundled examples work without a key.
+  - A refused or cut-off answer, or one that does not fit the schema, is also a rephrase case. Groq reports a cut-off strict answer as HTTP 400 `json_validate_failed`. API errors and a missing key are reported separately; the bundled examples work without a key.
+  - A rate-limit error (429) is not retried. The message says how long to wait.
 - Limits: 5 calls per session and 50 per day. The daily count is kept in `var/llm_calls.json` by UTC date. A call is counted before it is made, so failed calls count too. Descriptions over 2,000 characters are rejected before any call.
-- The API key comes from Streamlit secrets, or from `ANTHROPIC_API_KEY` in the environment or in `.env`.
-- Tests replay recorded API responses through the SDK with a mock transport, so CI makes no calls. `python -m junctionlab interpret --record FILE "text"` records a live response.
+- The API key comes from Streamlit secrets, or from the environment or `.env`: `GROQ_API_KEY` or `ANTHROPIC_API_KEY`, depending on the provider.
+- Tests replay recorded responses through a mock transport, so CI makes no calls. Groq recordings are real (`tests/data/llm/record_groq.py`). Anthropic fixtures are synthetic.
+- **Live check (2026-11-22, `tests/data/llm/eval_groq.py`).** 10 descriptions scored against hand-written expected values: 9 correct. The miss: "about 600 cars an hour on each road" was read as 600 veh/h per approach, with a note but no assumed-field highlight. This is one small sample, not an accuracy estimate.
 
 | Field | Example | Rules |
 | --- | --- | --- |

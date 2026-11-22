@@ -1,0 +1,33 @@
+{
+  "source": "synthetic",
+  "text": "T-junction with a priority rule. The main road runs east-west with 350 veh/h from each direction. The side road joins from the south with 140 veh/h. One lane on each approach.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_02",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "synthetic"
+        },
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [], \"name\": \"T-junction with priority rule\", \"junction_type\": \"t_junction\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": null, \"east\": {\"demand_vph\": 350, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": 140, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": 350, \"lane_count\": 1, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"priority\", \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": \"east-west\"}}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

@@ -124,13 +124,25 @@ class Webster(_Frozen):
     margin_absolute_s: float = Field(ge=0)
 
 
-class Llm(_Frozen):
+class GroqLlm(_Frozen):
     model: str
+    max_tokens: int = Field(gt=0)
+    reasoning_effort: Literal["low", "medium", "high"]
+
+
+class AnthropicLlm(_Frozen):
+    model: str
+    max_tokens: int = Field(gt=0)
+    effort: Literal["low", "medium", "high"]
+
+
+class Llm(_Frozen):
+    provider: Literal["groq", "anthropic"]
+    groq: GroqLlm
+    anthropic: AnthropicLlm
     calls_per_session: int = Field(ge=0)
     calls_per_day: int = Field(ge=0)
     counter_file: Path
-    max_tokens: int = Field(gt=0)
-    effort: Literal["low", "medium", "high"]
     max_input_chars: int = Field(gt=0)
 
 

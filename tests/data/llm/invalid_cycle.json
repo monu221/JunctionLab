@@ -1,33 +1,47 @@
 {
-  "source": "synthetic",
+  "source": "live",
+  "recorded_utc": "2026-11-22T22:16:58+00:00",
   "text": "Crossroads with traffic lights on a 15 second cycle, 300 veh/h on every approach.",
   "response": {
     "status": 200,
     "body": {
-      "id": "msg_synthetic_08",
-      "type": "message",
-      "role": "assistant",
-      "model": "claude-haiku-5-5",
-      "content": [
+      "id": "chatcmpl-a121bc47-8203-42c3-ab00-065293c4c243",
+      "object": "chat.completion",
+      "created": 1795385818,
+      "model": "openai/gpt-oss-120b",
+      "choices": [
         {
-          "type": "thinking",
-          "thinking": "",
-          "signature": "synthetic"
-        },
-        {
-          "type": "text",
-          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [], \"name\": null, \"junction_type\": \"four_arm\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": 300, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"signal\", \"cycle_s\": 15, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":300,\"lane_count\":null,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":15,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
         }
       ],
-      "stop_reason": "end_turn",
-      "stop_sequence": null,
-      "stop_details": null,
       "usage": {
-        "input_tokens": 1850,
-        "output_tokens": 420,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0
-      }
+        "queue_time": 0.288884107,
+        "prompt_tokens": 1862,
+        "prompt_time": 0.005061595,
+        "completion_tokens": 768,
+        "completion_time": 1.654724101,
+        "total_tokens": 2630,
+        "total_time": 1.6597856960000001,
+        "prompt_tokens_details": {
+          "cached_tokens": 1792
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 470
+        }
+      },
+      "usage_breakdown": null,
+      "system_fingerprint": "fp_5a93aea882",
+      "x_groq": {
+        "id": "req_01m82naxeyeawtyw4s980mgcy7",
+        "seed": 1548646003
+      },
+      "service_tier": "on_demand"
     }
   }
 }

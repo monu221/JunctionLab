@@ -18,6 +18,8 @@ dependencies = [
     "pyyaml>=6.0",
     # Messages API with structured outputs (messages.parse); 2.x is built on httpx2.
     "anthropic>=2.10,<3",
+    # HTTP client for the Groq provider.
+    "httpx2>=2.16,<3",
     "python-dotenv>=1.0",
 ]
 

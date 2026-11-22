@@ -1,4 +1,6 @@
-"""Text to scenario with Claude (docs/method.md, section 1).
+"""Text to scenario with a configurable LLM provider (docs/method.md, section 1).
+
+The provider is `llm.provider` in config.yaml: Groq (default, free tier) or Anthropic.
 
 The LLM only fills `Interpretation`, a structured-output schema. Python then turns it into a
 `ScenarioDraft` and `resolve()` fills the gaps from config.yaml. The LLM never writes SUMO
@@ -19,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,7 +47,9 @@ from junctionlab.scenario import (
     resolve,
 )
 
-API_KEY_NAME = "ANTHROPIC_API_KEY"
+API_KEY_NAMES = {"groq": "GROQ_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_TIMEOUT_S = 60.0
 REPHRASE_HINT = (
     "Please rephrase. Say what kind of junction it is (4-arm or T-junction), the traffic "
     "on each approach in vehicles per hour, and how it is controlled (signal, priority or "
@@ -127,7 +132,8 @@ class Interpretation(_Llm):
         description="False if the text does not describe a road junction this tool can model."
     )
     unclear: list[str] = Field(
-        description="Required facts that are missing or contradictory. Empty if none."
+        description="Problems with the required facts only (junction type, demand on every "
+        "approach, control type): missing or contradictory. Empty if none."
     )
     notes: list[str] = Field(
         description="Conversions you made and stated details the schema cannot hold."
@@ -169,7 +175,9 @@ Required: the junction type, the demand on every approach, and the control type.
 these is missing or contradictory, set understood to true but list each problem in unclear. \
 If the text is not about a road junction, or describes something this tool cannot model \
 (a roundabout, more than four arms, a junction with no traffic control information that \
-can be mapped), set understood to false and explain in unclear.
+can be mapped), set understood to false and explain in unclear. Never list optional details \
+in unclear (lanes, turning shares, signal timing, phase plan, major road, speed, length, \
+heavy vehicles): leave them null and the tool fills them.
 
 Put details you cannot represent (pedestrians, cycle lanes, parking, time of day) in notes \
 rather than dropping them silently. Keep unclear and notes short, one sentence per item."""
@@ -326,12 +334,13 @@ class CallLimiter:
 # --------------------------------------------------------------------------- client
 
 
-def api_key() -> str | None:
+def api_key(provider: str | None = None) -> str | None:
     """Streamlit secrets first (deployment), then the environment and .env (local)."""
+    name = API_KEY_NAMES[provider or get_config().llm.provider]
     try:
         import streamlit as st
 
-        key = st.secrets.get(API_KEY_NAME)
+        key = st.secrets.get(name)
         if key:
             return str(key)
     except Exception:  # streamlit missing, no secrets file, or not running in an app
@@ -339,21 +348,62 @@ def api_key() -> str | None:
     from dotenv import load_dotenv
 
     load_dotenv(REPO_ROOT / ".env", override=False)
-    return os.environ.get(API_KEY_NAME) or None
+    return os.environ.get(name) or None
+
+
+class GroqClient:
+    """Minimal client for Groq's OpenAI-compatible chat completions endpoint."""
+
+    def __init__(
+        self,
+        key: str,
+        transport: httpx2.BaseTransport | None = None,
+        max_retries: int = 2,
+    ):
+        self.max_retries = max_retries
+        self._http = httpx2.Client(
+            base_url=GROQ_BASE_URL,
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=GROQ_TIMEOUT_S,
+            transport=transport,
+        )
+
+    def post_chat(self, body: dict[str, Any]) -> httpx2.Response:
+        """POST with retries on transient server errors. A 429 is never retried here: the
+        wait can be long, so the user is told instead."""
+        for attempt in range(self.max_retries + 1):
+            last = attempt == self.max_retries
+            try:
+                response = self._http.post("/chat/completions", json=body)
+            except httpx2.TransportError as e:
+                if last:
+                    raise LlmUnavailable("Could not reach Groq. Check the connection.") from e
+            else:
+                if response.status_code not in (500, 502, 503) or last:
+                    return response
+            time.sleep(0.5 * 2**attempt)
+        raise AssertionError("unreachable")
+
+
+LlmClient = anthropic.Anthropic | GroqClient
 
 
 def make_client(
     key: str | None = None,
     transport: httpx2.BaseTransport | None = None,
     max_retries: int = 2,
-) -> anthropic.Anthropic:
-    """A client for the Messages API. `transport` replaces the network (tests, recording)."""
-    key = key or api_key()
+    provider: str | None = None,
+) -> LlmClient:
+    """A client for the provider. `transport` replaces the network (tests, recording)."""
+    provider = provider or get_config().llm.provider
+    key = key or api_key(provider)
     if not key:
         raise LlmUnavailable(
-            f"No API key: set {API_KEY_NAME} in .env or the Streamlit secrets. The bundled "
-            "examples work without one."
+            f"No API key: set {API_KEY_NAMES[provider]} in .env or the Streamlit secrets. The "
+            "bundled examples work without one."
         )
+    if provider == "groq":
+        return GroqClient(key, transport=transport, max_retries=max_retries)
     http_client = anthropic.DefaultHttpxClient(transport=transport) if transport else None
     return anthropic.Anthropic(api_key=key, http_client=http_client, max_retries=max_retries)
 
@@ -369,20 +419,108 @@ class Interpreted:
 OUTPUT_FORMAT = {"type": "json_schema", "schema": anthropic.transform_schema(Interpretation)}
 
 
-def call_llm(text: str, client: anthropic.Anthropic, cfg: Config) -> Interpretation:
-    """One Messages API call with structured output. No limits are checked here.
+def _parse_answer(text_out: str | None) -> Interpretation:
+    if text_out is None:
+        raise InterpretationError(["the model gave no structured answer"])
+    try:
+        return Interpretation.model_validate_json(text_out)
+    except ValidationError as e:
+        raise InterpretationError(["the model's answer did not fit the scenario form"]) from e
 
-    Uses `messages.create` with `output_config.format` rather than `messages.parse`, so the
+
+def call_llm(text: str, client: LlmClient, cfg: Config) -> Interpretation:
+    """One structured-output call to the client's provider. No limits are checked here."""
+    if isinstance(client, GroqClient):
+        return _call_groq(text, client, cfg)
+    return _call_anthropic(text, client, cfg)
+
+
+def groq_request(text: str, cfg: Config) -> dict[str, Any]:
+    """Chat completion in strict structured-output mode, using the same schema as Anthropic."""
+    return {
+        "model": cfg.llm.groq.model,
+        "max_completion_tokens": cfg.llm.groq.max_tokens,
+        "temperature": 0,
+        "reasoning_effort": cfg.llm.groq.reasoning_effort,
+        "include_reasoning": False,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": text},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "junction_scenario",
+                "strict": True,
+                "schema": OUTPUT_FORMAT["schema"],
+            },
+        },
+    }
+
+
+def _wait_text(retry_after: str | None) -> str:
+    try:
+        seconds = float(retry_after)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return "Try again in a minute."
+    if seconds < 90:
+        return f"Try again in about {max(1, round(seconds))} s."
+    if seconds < 5400:
+        return f"Try again in about {round(seconds / 60)} min."
+    return f"Try again in about {round(seconds / 3600)} h."
+
+
+def _groq_error(response: httpx2.Response) -> LlmError:
+    status = response.status_code
+    try:
+        error = response.json().get("error") or {}
+    except (ValueError, AttributeError):
+        error = {}
+    if status == 429:
+        return LlmUnavailable(
+            "The free Groq tier's rate limit is reached. "
+            + _wait_text(response.headers.get("retry-after"))
+            + " You can still edit the scenario in the form or start from a bundled example."
+        )
+    if status == 401:
+        return LlmUnavailable("The API key was rejected.")
+    if status == 403:
+        return LlmUnavailable("The API key may not use this model.")
+    if status == 400 and error.get("code") == "json_validate_failed":
+        return InterpretationError(["the model's answer did not fit the scenario form"])
+    if status in (400, 404, 413, 422):
+        return LlmUnavailable(f"The API rejected the request ({status}).")
+    return LlmUnavailable(f"The API returned an error ({status}). Try again.")
+
+
+def _call_groq(text: str, client: GroqClient, cfg: Config) -> Interpretation:
+    response = client.post_chat(groq_request(text, cfg))
+    if response.status_code != 200:
+        raise _groq_error(response)
+    try:
+        choice = response.json()["choices"][0]
+        message = choice["message"]
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        raise LlmUnavailable("The API returned an unreadable response. Try again.") from e
+    if message.get("refusal"):
+        raise InterpretationError(["the model declined to process this text"])
+    if choice.get("finish_reason") == "length":
+        raise InterpretationError(["the model's answer was cut off"])
+    return _parse_answer(message.get("content"))
+
+
+def _call_anthropic(text: str, client: anthropic.Anthropic, cfg: Config) -> Interpretation:
+    """Uses `messages.create` with `output_config.format` rather than `messages.parse`, so the
     stop reason can be checked before the JSON is parsed: a refused or cut-off answer is not
     reported as a schema mismatch.
     """
     try:
         response = client.messages.create(
-            model=cfg.llm.model,
-            max_tokens=cfg.llm.max_tokens,
+            model=cfg.llm.anthropic.model,
+            max_tokens=cfg.llm.anthropic.max_tokens,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": text}],
-            output_config={"format": OUTPUT_FORMAT, "effort": cfg.llm.effort},
+            output_config={"format": OUTPUT_FORMAT, "effort": cfg.llm.anthropic.effort},
         )
     except anthropic.AuthenticationError as e:
         raise LlmUnavailable("The API key was rejected.") from e
@@ -401,19 +539,13 @@ def call_llm(text: str, client: anthropic.Anthropic, cfg: Config) -> Interpretat
         raise InterpretationError(["the model declined to process this text"])
     if response.stop_reason == "max_tokens":
         raise InterpretationError(["the model's answer was cut off"])
-    text_out = next((b.text for b in response.content if b.type == "text"), None)
-    if text_out is None:
-        raise InterpretationError(["the model gave no structured answer"])
-    try:
-        return Interpretation.model_validate_json(text_out)
-    except ValidationError as e:
-        raise InterpretationError(["the model's answer did not fit the scenario form"]) from e
+    return _parse_answer(next((b.text for b in response.content if b.type == "text"), None))
 
 
 def interpret(
     text: str,
     session: LlmSession,
-    client: anthropic.Anthropic | None = None,
+    client: LlmClient | None = None,
     config: Config | None = None,
     limiter: CallLimiter | None = None,
 ) -> Interpreted:
@@ -427,7 +559,7 @@ def interpret(
         raise InterpretationError(
             [f"the description is longer than {cfg.llm.max_input_chars} characters"]
         )
-    client = client or make_client()
+    client = client or make_client(provider=cfg.llm.provider)
     (limiter or CallLimiter(cfg)).reserve(session)
     interp = call_llm(text, client, cfg)
     draft, notes = to_draft(interp)
@@ -451,7 +583,8 @@ class ReplayTransport(httpx2.BaseTransport):
     def handle_request(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(json.loads(request.read()))
         r = self.recording["response"]
-        return httpx2.Response(r["status"], json=r["body"], headers={"request-id": "req_replay"})
+        headers = {"request-id": "req_replay", **r.get("headers", {})}
+        return httpx2.Response(r["status"], json=r["body"], headers=headers)
 
 
 class RecordingTransport(httpx2.HTTPTransport):
@@ -470,6 +603,8 @@ class RecordingTransport(httpx2.HTTPTransport):
             "text": self.text,
             "response": {"status": response.status_code, "body": json.loads(body)},
         }
+        if "retry-after" in response.headers:  # the only response header replay needs
+            recording["response"]["headers"] = {"retry-after": response.headers["retry-after"]}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(recording, indent=2) + "\n", encoding="utf-8")
         # The body is already decoded, so drop the headers that describe the raw stream.

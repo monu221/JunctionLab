@@ -1,27 +1,15 @@
 {
-  "source": "synthetic",
+  "source": "live",
+  "recorded_utc": "2026-11-22T22:17:13+00:00",
   "text": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
   "response": {
-    "status": 200,
+    "status": 400,
     "body": {
-      "id": "msg_synthetic_10",
-      "type": "message",
-      "role": "assistant",
-      "model": "claude-haiku-5-5",
-      "content": [
-        {
-          "type": "text",
-          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [\""
-        }
-      ],
-      "stop_reason": "max_tokens",
-      "stop_sequence": null,
-      "stop_details": null,
-      "usage": {
-        "input_tokens": 1850,
-        "output_tokens": 420,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0
+      "error": {
+        "message": "Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+        "type": "invalid_request_error",
+        "code": "json_validate_failed",
+        "failed_generation": ""
       }
     }
   }

@@ -1,0 +1,33 @@
+{
+  "source": "synthetic",
+  "text": "T-junction with a stop-controlled side road from the north. Main road east-west, 600 veh/h from the east and 550 veh/h from the west, side road 200 veh/h. On the main road 10% turn into the side road from the west.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_05",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "synthetic"
+        },
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [\"The side-road stop sign is modelled as a priority rule.\"], \"name\": null, \"junction_type\": \"t_junction\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": 200, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": 600, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": null, \"west\": {\"demand_vph\": 550, \"lane_count\": null, \"lanes\": null, \"turning_shares_pct\": {\"left\": 10, \"through\": null, \"right\": null}, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"priority\", \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": \"east-west\"}}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

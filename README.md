@@ -27,7 +27,9 @@ python -m junctionlab webster                   # check simulated delay against 
 python -m junctionlab interpret "Crossroads, 800 veh/h from the north, ..." --out s.json --run
 ```
 
-`interpret` calls Claude and needs `ANTHROPIC_API_KEY` in `.env` (see `.env.example`) or in the environment. It uses at most 5 calls per session and 50 per day. Everything else works without a key.
+`interpret` runs on the **free Groq tier** and needs `GROQ_API_KEY` in `.env` (see `.env.example`) or in the environment. The Streamlit app (M6) will use the same path. It uses at most 5 calls per session and 50 per day, and Groq's own rate limits also apply. Everything else works without a key.
+
+To use Anthropic instead, set `llm.provider: anthropic` in `config.yaml` and add `ANTHROPIC_API_KEY`. This is a paid API.
 
 Tests make no API calls. To run the one live test:
 

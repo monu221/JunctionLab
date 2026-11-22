@@ -233,6 +233,9 @@ def main(argv: list[str] | None = None) -> int:
     text.add_argument("--record", type=Path, help="save the API response for replay in tests")
     text.set_defaults(func=cmd_interpret)
     args = parser.parse_args(argv)
+    # Model notes can hold characters a Windows console cannot encode.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
     return args.func(args)
 
 

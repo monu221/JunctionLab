@@ -1,0 +1,33 @@
+{
+  "source": "synthetic",
+  "text": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_synthetic_01",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "synthetic"
+        },
+        {
+          "type": "text",
+          "text": "{\"understood\": true, \"unclear\": [], \"notes\": [], \"name\": \"Four-arm fixed-time signal\", \"junction_type\": \"four_arm\", \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": {\"demand_vph\": 800, \"lane_count\": 2, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"east\": {\"demand_vph\": 500, \"lane_count\": 2, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"south\": {\"demand_vph\": 600, \"lane_count\": 2, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}, \"west\": {\"demand_vph\": 500, \"lane_count\": 2, \"lanes\": null, \"turning_shares_pct\": null, \"heavy_vehicle_share_pct\": null, \"bus_lane\": null, \"bus_demand_bph\": null, \"bus_right_share_pct\": null}}, \"control\": {\"kind\": \"signal\", \"cycle_s\": 90, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 1850,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

@@ -75,10 +75,16 @@ webster:
   margin_absolute_s: 3.0
 
 llm:
-  model: claude-haiku-5-5
+  provider: groq                     # groq (free tier) | anthropic (paid)
+  groq:
+    model: openai/gpt-oss-120b       # production model with strict structured outputs
+    max_tokens: 4000                 # includes reasoning; counts against the tokens-per-minute limit
+    reasoning_effort: medium         # low | medium | high
+  anthropic:
+    model: claude-haiku-5-5
+    max_tokens: 16000
+    effort: medium                   # Haiku 5.5 default; low | medium | high
   calls_per_session: 5
   calls_per_day: 50
   counter_file: var/llm_calls.json   # daily count (UTC date); relative to the repo root
-  max_tokens: 16000
-  effort: medium                     # Haiku 5.5 default; low | medium | high
   max_input_chars: 2000              # longer descriptions are rejected before any call

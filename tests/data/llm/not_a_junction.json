@@ -1,33 +1,44 @@
 {
-  "source": "synthetic",
+  "source": "live",
+  "recorded_utc": "2026-11-22T22:16:41+00:00",
   "text": "Write me a poem about the sea.",
   "response": {
     "status": 200,
     "body": {
-      "id": "msg_synthetic_07",
-      "type": "message",
-      "role": "assistant",
-      "model": "claude-haiku-5-5",
-      "content": [
+      "id": "chatcmpl-690df912-4905-4278-89e9-cd93caaa89d7",
+      "object": "chat.completion",
+      "created": 1795385801,
+      "model": "openai/gpt-oss-120b",
+      "choices": [
         {
-          "type": "thinking",
-          "thinking": "",
-          "signature": "synthetic"
-        },
-        {
-          "type": "text",
-          "text": "{\"understood\": false, \"unclear\": [\"The text does not describe a road junction.\"], \"notes\": [], \"name\": null, \"junction_type\": null, \"speed_limit_kmh\": null, \"approach_length_m\": null, \"approaches\": {\"north\": null, \"east\": null, \"south\": null, \"west\": null}, \"control\": {\"kind\": null, \"cycle_s\": null, \"phase_plan\": null, \"green_s\": null, \"major_road\": null}}"
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\"understood\":false,\"unclear\":[\"Input does not describe a road junction.\"],\"notes\":[],\"name\":null,\"junction_type\":null,\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":null,\"east\":null,\"south\":null,\"west\":null},\"control\":{\"kind\":null,\"cycle_s\":null,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
         }
       ],
-      "stop_reason": "end_turn",
-      "stop_sequence": null,
-      "stop_details": null,
       "usage": {
-        "input_tokens": 1850,
-        "output_tokens": 420,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0
-      }
+        "queue_time": 0.218870999,
+        "prompt_tokens": 1850,
+        "prompt_time": 0.073088677,
+        "completion_tokens": 416,
+        "completion_time": 0.885817119,
+        "total_tokens": 2266,
+        "total_time": 0.958905796,
+        "completion_tokens_details": {
+          "reasoning_tokens": 312
+        }
+      },
+      "usage_breakdown": null,
+      "system_fingerprint": "fp_c868cf1eaa",
+      "x_groq": {
+        "id": "req_01m82nadhte1q8xhexkw447pq7",
+        "seed": 294617104
+      },
+      "service_tier": "on_demand"
     }
   }
 }

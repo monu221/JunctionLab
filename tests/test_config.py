@@ -18,7 +18,9 @@ def test_repo_config_loads_with_decided_values():
     assert (cfg.control.amber_s, cfg.control.all_red_s) == (3, 2)
     assert cfg.los.signalised["E"] == 80
     assert cfg.los.unsignalised["E"] == 50
-    assert cfg.llm.model == "claude-haiku-5-5"
+    assert cfg.llm.provider == "groq"
+    assert cfg.llm.groq.model == "openai/gpt-oss-120b"
+    assert cfg.llm.anthropic.model == "claude-haiku-5-5"
     assert cfg.geometry.speed_limit_kmh == 50
     assert cfg.simulation.step_length_s == 1.0
     assert cfg.simulation.gridlock_stop_s == 300
