@@ -1,4 +1,4 @@
-"""Command line: python -m junctionlab {list,run,webster,interpret} ..."""
+"""Command line: python -m junctionlab {list,run,webster,interpret,agent,agent-eval} ..."""
 
 from __future__ import annotations
 
@@ -235,6 +235,57 @@ def cmd_interpret(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_agent(args: argparse.Namespace) -> int:
+    from junctionlab import agent, llm
+
+    scenario = _load(args.target)
+    if args.confirm_demand:
+        scenario = scenario.confirm()
+    if scenario.needs_confirmation:
+        _print_unconfirmed(scenario)
+        return 4
+    try:
+        client = llm.make_client()
+        goal = agent.read_goal(args.goal, client)
+        print(f"Goal read as: {goal.label}")
+        print("Working: each simulation takes a few seconds.", flush=True)
+        result = agent.run_agent(scenario, goal, client)
+    except (llm.LlmError, ValueError) as e:
+        print(e)
+        return 3
+    for step in result.trace:
+        print(f"  {_trace_line(step)}")
+    print(f"\n{agent.STOP_LABELS[result.stop_reason]} {result.message}".rstrip())
+    print(f"Best design ({result.best_id}): {agent.design_label(result.best)}")
+    print(f"Goal: {agent.STATUS_LABELS[result.status]}")
+    print(f"Simulation runs: {result.runs_used}; LLM calls: {result.llm_calls}")
+    print_summary(result.best_summary)
+    return 0
+
+
+def _trace_line(step) -> str:
+    return f"{step.step}. {step.change} | {step.result or 'proposed'} | {step.reason}"
+
+
+def cmd_agent_eval(args: argparse.Namespace) -> int:
+    from junctionlab import agent_eval as ev
+    from junctionlab import llm
+
+    try:
+        if args.stage == "grid":
+            print(f"Grid: {ev.run_grid()} designs simulated or already saved.")
+        elif args.stage == "baselines":
+            ev.run_baselines()
+        elif args.stage == "agent":
+            print(f"Agent runs completed now: {ev.run_agent_stage()}")
+        else:
+            print(f"Report written: {ev.write_report()}")
+    except (llm.LlmError, ValueError) as e:
+        print(e)
+        return 3
+    return 0
+
+
 def cmd_list(_: argparse.Namespace) -> int:
     for e in list_examples():
         print(f"{e.key:<22} {e.description}")
@@ -266,6 +317,16 @@ def main(argv: list[str] | None = None) -> int:
         "--confirm-demand", action="store_true", help="accept the model's reading of the demand"
     )
     text.set_defaults(func=cmd_interpret)
+    design = sub.add_parser("agent", help="design a signal for a goal (uses the API)")
+    design.add_argument("target", help="example key or path to a JSON file")
+    design.add_argument("goal", help="the goal in quotes")
+    design.add_argument(
+        "--confirm-demand", action="store_true", help="accept the model's reading of the demand"
+    )
+    design.set_defaults(func=cmd_agent)
+    evaluate = sub.add_parser("agent-eval", help="evaluate the agent against baselines")
+    evaluate.add_argument("stage", choices=["grid", "baselines", "agent", "report"])
+    evaluate.set_defaults(func=cmd_agent_eval)
     args = parser.parse_args(argv)
     # Model notes can hold characters a Windows console cannot encode.
     if hasattr(sys.stdout, "reconfigure"):

@@ -88,3 +88,23 @@ llm:
   calls_per_day: 50
   counter_file: var/llm_calls.json   # daily count (UTC date); relative to the repo root
   max_input_chars: 2000              # longer descriptions are rejected before any call
+
+agent:
+  # Signal-design agent (M9). Run and goal limits were set by the user on 2026-11-23.
+  max_simulations_per_goal: 8        # includes the "before" run
+  max_goals_per_session: 3
+  max_llm_calls_per_goal: 16         # confirmed 2026-11-23; includes reading the goal
+  llm_calls_per_day: 150             # confirmed 2026-11-23; separate from llm.calls_per_day
+  counter_file: var/agent_calls.json # daily count (UTC date); relative to the repo root
+  max_goal_chars: 300
+  pause_between_calls_s: 2           # proposed: spreads calls over the tokens-per-minute limit
+  # Search space, shared by the agent, the grid and random search so results are comparable.
+  cycle_min_s: 40
+  cycle_max_s: 120
+  evaluation:
+    cycle_step_s: 5
+    split_offsets_pct: [-20, -15, -10, -5, 0, 5, 10, 15, 20]  # first-phase share around Webster
+    holdout_seeds: [6, 7, 8, 9, 10]  # the fair re-check; never used to choose a design
+    repeats: 3
+    random_designs: 8
+    results_dir: var/agent_eval      # resumable; relative to the repo root

@@ -270,3 +270,26 @@ Neither cause is a SUMO defect, and nothing was tuned.
 ## 5. Comparing scenarios
 
 Two scenarios are compared approach by approach: delay, queue and LOS before and after, with the change highlighted. Both scenarios run with the same 5 seeds.
+
+## 6. Signal-design agent
+
+The agent searches for a fixed-time signal plan that reaches a goal stated in plain language. It can change the cycle length, green splits and phase plan. It cannot change demand or geometry: its tools refer to designs by id, and every change is validated by the `Scenario` model.
+
+**Goal.** A goal is an optional LOS limit plus one objective: shortest cycle, lowest junction delay, or lowest delay on the worst approach.
+
+| Status | Meaning |
+| --- | --- |
+| Met | Every approach meets the LOS limit in every seed, with no delay reported as a lower bound |
+| Borderline | The limit holds on each approach's mean delay, but not in every seed |
+| Not met | The limit fails on the mean, or a delay is only a lower bound |
+
+**Best design.** Python ranks the simulated designs: met before borderline before not met, then the distance from the limit, then the objective. The model's opinion is not used.
+
+**Limits.** Runs, goals and LLM calls are set in `config.yaml`. When the provider's rate limit or any other LLM failure ends a goal, the best design so far is returned.
+
+**Evaluation.** The agent is compared with Webster's optimum cycle, random search and a grid search, in `agent_evaluation.md`.
+
+- Webster: Co = (1.5L + 5) / (1 − Y), with Webster splits. L is the lost time per cycle (measured lost time plus all-red, per phase). Y is the sum of the critical flow ratios, using the measured saturation flow.
+- Random search: 8 random valid designs, 3 repeats, no LLM.
+- Grid: cycles of 40–120 s in 5 s steps. Two-phase designs use 9 splits around Webster's. Four-phase designs use Webster splits only, so the grid optimum is the best of this grid, not a proven global optimum.
+- Fair re-check: every method chooses on seeds 1–5, and its best design is judged on unused seeds 6–10. Choosing the best of many runs on the same seeds otherwise flatters the result.

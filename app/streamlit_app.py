@@ -14,10 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import streamlit as st
 from pydantic import ValidationError
 
-from junctionlab import llm, ui
+from junctionlab import agent, llm, ui
 from junctionlab.config import get_config
 from junctionlab.examples import list_examples
 from junctionlab.metrics import Summary
@@ -84,6 +85,9 @@ def set_scenario(
         result=None,
         message=None,
         form_errors=[],
+        agent_goal=None,
+        agent_result=None,
+        agent_error=None,
     )
 
 
@@ -605,6 +609,155 @@ def render_comparison(result: RunOutput | None) -> None:
     st.button("Clear comparison", key="clear_comparison", on_click=clear_comparison)
 
 
+# --- Signal-design agent ---------------------------------------------------------------
+
+
+def _same_scenario(a: Scenario, b: Scenario) -> bool:
+    return a.model_dump(exclude={"confirmed"}) == b.model_dump(exclude={"confirmed"})
+
+
+def adopt_design() -> None:
+    """The best design becomes the scenario. Earlier results no longer describe it."""
+    found: agent.AgentResult = st.session_state["agent_result"]
+    st.session_state.update(
+        scenario=found.best,
+        form_version=st.session_state.get("form_version", 0) + 1,
+        result=None,
+        agent_adopted=True,
+    )
+
+
+def read_agent_goal(text: str) -> None:
+    st.session_state.update(agent_goal=None, agent_result=None, agent_error=None)
+    try:
+        with st.spinner("Reading the goal…"):
+            goal = agent.read_goal(text, llm.make_client())
+    except llm.LlmError as e:
+        st.session_state["agent_error"] = str(e)
+    else:
+        st.session_state["agent_goal"] = goal
+
+
+def trace_table(trace: list[agent.TraceStep], running: bool = False) -> pd.DataFrame:
+    pending = "Proposed" if running else "Not simulated"
+    return pd.DataFrame(
+        [
+            {
+                "Step": t.step,
+                "Change": t.change,
+                "Result": t.result or pending,
+                "Reasoning": t.reason,
+            }
+            for t in trace
+        ]
+    )
+
+
+def execute_agent(s: Scenario, goal: agent.Goal, slot) -> None:
+    session = st.session_state.setdefault("agent_session", agent.AgentSession())
+    st.session_state.update(agent_error=None, agent_result=None, agent_adopted=False)
+    try:
+        agent.start_goal(session)
+        client = llm.make_client()
+    except llm.LlmError as e:
+        st.session_state["agent_error"] = str(e)
+        return
+    steps: list[agent.TraceStep] = []
+
+    def on_step(trace: list[agent.TraceStep]) -> None:
+        steps[:] = list(trace)
+
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="junctionlab-agent")
+    future = pool.submit(agent.run_agent, s, goal, client, on_step=on_step)
+    pool.shutdown(wait=False)
+    with slot.container():
+        status = st.empty()
+        table = st.empty()
+        while not future.done():
+            status.info("The agent is working. Each simulation takes a few seconds.")
+            if steps:
+                table.dataframe(
+                    trace_table(list(steps), running=True), hide_index=True, width="stretch"
+                )
+            time.sleep(TICK_S)
+    slot.empty()
+    try:
+        st.session_state["agent_result"] = future.result()
+    except Exception as e:  # the "before" run failed, so there is no design to show
+        st.session_state["agent_error"] = f"The agent could not start: {e}"
+
+
+def render_agent_result(found: agent.AgentResult, current: Scenario) -> None:
+    st.markdown(f"**Trace** · {found.goal.label}")
+    st.dataframe(trace_table(found.trace), hide_index=True, width="stretch")
+    note = f"{agent.STOP_LABELS[found.stop_reason]} {found.message}".strip()
+    st.caption(f"{note} {found.runs_used} simulation runs, {found.llm_calls} LLM calls.")
+    label = agent.STATUS_LABELS[found.status]
+    st.markdown(f"**Best design ({found.best_id}):** {agent.design_label(found.best)}")
+    if found.status == "met":
+        st.success(
+            f"Goal met: {found.goal.label}. This is the best design found in "
+            f"{found.runs_used} runs, not a proven optimum.",
+            icon=":material/check_circle:",
+        )
+    elif found.status == "borderline":
+        st.warning(
+            "**Borderline:** the LOS limit holds on the mean, but not in every seed.",
+            icon=":material/warning:",
+        )
+    else:
+        st.warning(f"**{label}:** this is the closest design found.", icon=":material/warning:")
+    st.markdown(f"**Before and after** · A: {agent.design_label(found.before)}")
+    table = ui.comparison_table(found.before_summary, found.best_summary)
+    st.dataframe(ui.style_los(table, ("LOS A", "LOS B")), hide_index=True, width="stretch")
+    if st.session_state.get("agent_adopted") and _same_scenario(found.best, current):
+        st.info("Adopted. Run the simulation to see the full results.", icon=":material/check:")
+    elif not found.changed:
+        st.caption("The current design is already the best one found.")
+    elif not _same_scenario(found.before, current):
+        st.caption("The scenario was edited after this search, so it can't be adopted.")
+    else:
+        st.button("Adopt", key="agent_adopt", type="primary", on_click=adopt_design)
+
+
+def render_agent(s: Scenario) -> None:
+    if not isinstance(s.control, FixedTimeSignal):
+        return
+    cfg = get_config().agent
+    session = st.session_state.setdefault("agent_session", agent.AgentSession())
+    found: agent.AgentResult | None = st.session_state.get("agent_result")
+    with st.expander("Design the signal with an agent", expanded=found is not None):
+        st.caption(
+            "The agent changes only cycle length, green splits and phase plan, never demand or "
+            f"geometry. Up to {cfg.max_simulations_per_goal} simulation runs per goal, "
+            f"{cfg.max_goals_per_session} goals per session ({session.goals} used)."
+        )
+        with st.form("agent_goal_form", border=False):
+            text = st.text_input(
+                "Goal",
+                key="agent_goal_text",
+                max_chars=cfg.max_goal_chars,
+                placeholder="All approaches LOS C or better, shortest cycle possible",
+            )
+            read = st.form_submit_button("Read goal", key="agent_read_goal")
+        if read:
+            read_agent_goal(text)
+        if error := st.session_state.get("agent_error"):
+            st.error(error, icon=":material/error:")
+        goal: agent.Goal | None = st.session_state.get("agent_goal")
+        slot = st.empty()
+        if goal is not None:
+            st.markdown(f"**Goal read as:** {goal.label}.")
+            blocked = bool(s.needs_confirmation) or session.goals >= cfg.max_goals_per_session
+            if s.needs_confirmation:
+                st.caption("Confirm the interpreted demand above to start the agent.")
+            if st.button("Start agent", key="agent_start", disabled=blocked):
+                execute_agent(s, goal, slot)
+                st.rerun()
+        if found is not None:
+            render_agent_result(found, s)
+
+
 # --- Page ------------------------------------------------------------------------------
 
 
@@ -632,6 +785,7 @@ def main() -> None:
     render_interpreted(scenario)
     render_conversions(scenario)
     render_not_simulated(scenario)
+    render_agent(scenario)
     with st.expander("Edit the scenario", expanded=result is None):
         render_form(scenario, progress_slot)
 

@@ -146,6 +146,28 @@ class Llm(_Frozen):
     max_input_chars: int = Field(gt=0)
 
 
+class AgentEvaluation(_Frozen):
+    cycle_step_s: int = Field(gt=0)
+    split_offsets_pct: tuple[int, ...]
+    holdout_seeds: tuple[int, ...]
+    repeats: int = Field(gt=0)
+    random_designs: int = Field(gt=0)
+    results_dir: Path
+
+
+class Agent(_Frozen):
+    max_simulations_per_goal: int = Field(gt=0)
+    max_goals_per_session: int = Field(gt=0)
+    max_llm_calls_per_goal: int = Field(gt=1)
+    llm_calls_per_day: int = Field(ge=0)
+    counter_file: Path
+    max_goal_chars: int = Field(gt=0)
+    pause_between_calls_s: float = Field(ge=0)
+    cycle_min_s: int = Field(gt=0)
+    cycle_max_s: int = Field(gt=0)
+    evaluation: AgentEvaluation
+
+
 class Config(_Frozen):
     geometry: Geometry
     simulation: Simulation
@@ -157,6 +179,7 @@ class Config(_Frozen):
     baseline: Baseline
     webster: Webster
     llm: Llm
+    agent: Agent
 
 
 def load_config(path: Path | str | None = None) -> Config:

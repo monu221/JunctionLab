@@ -19,6 +19,7 @@ At the end of every milestone: commit, push, check that CI passes on Ubuntu and 
 | M6 | Streamlit app | Text → editable form (assumed and interpreted fields highlighted; interpreted demand shown with the model's note and confirmed before Run is enabled) → run → results table and Plotly charts → sumolib network drawing; copy and compare | Manual check plus app smoke test |
 | M7 | PDF report | One page with fpdf2 and matplotlib charts | PDF generated in tests |
 | M8 | Examples and docs | 3 bundled scenarios that work offline, README, deployment to Streamlit Community Cloud | Examples run in CI without an API key |
+| M9 | Signal-design agent (built before M7 and M8) | Plain-language goal → tool-using agent on the configured LLM (`simulate`, `propose_change`, `compare`) → trace, best design, before/after, Adopt. Evaluation against Webster, random search and a grid in `docs/agent_evaluation.md` | Tests on recorded responses pass with no live calls in CI; the evaluation is written after the user has tried the agent |
 
 ## Decisions
 
@@ -104,6 +105,14 @@ Recorded 2026-11-18, from the question round on the original plan.
   - **Proposed, please confirm:** a range cell such as "B-C" takes the colour of its worse grade.
   - A scenario with no name gets one from its values, such as "4-arm signal, 600 veh/h each". A generated name updates when the values are edited; a stated name is kept.
   - "Not simulated" lists only details the simulation ignores. Conversions are shown separately, and text already in the interpreted-demand box is not repeated.
+- **Signal-design agent (M9, 2026-11-23).**
+  - Confirmed by the user: 8 simulation runs per goal (including the "before" run), 3 goals per session, 16 LLM calls per goal, 150 agent calls per day, counted separately from descriptions.
+  - `propose_change` takes cycle, plan and greens together, because a cycle or plan change alone would break the rule that greens and intergreens add up to the cycle. Without greens, a new cycle or plan gets Webster splits.
+  - `simulate` and `compare` take design ids, so the model never handles a scenario. Python keeps the budget, the goal check and the choice of the best design.
+  - A LOS goal is **met** only if every approach meets it in every seed. A design that meets it on the mean only is **borderline**.
+  - A 429 ends the goal with the best design so far and is not retried. Live testing showed the free tier cutting a goal off after 5 of 8 runs, so the agent now waits for Groq's reported token budget before the next call. **Proposed, please confirm:** 2 s between calls, and a wait when fewer than 1.5 times the last call's tokens remain.
+  - The evaluation's T-junction is a signalised copy of the priority example, with the same demand and geometry. It is not a bundled example.
+  - Evaluation search space: cycles of 40–120 s, shared by the agent, grid and random search. Webster's cycle for the T-junction (38.3 s) is held to the 40 s minimum.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 
