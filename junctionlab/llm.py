@@ -242,8 +242,8 @@ just because it is rounded or says "about". Facts that are simply missing are no
 List every stated detail you cannot represent in not_simulated, so the user sees it before \
 the run: pedestrians and crossings, cyclists and cycle lanes, parking, trams, nearby land use, \
 time of day, protected left-turn phases, turn bays, slip lanes, actuated or adaptive signals, \
-gradients, weather. Use notes only for conversions. Keep unclear, notes and not_simulated \
-short, one item each."""
+gradients, weather. Use notes only for conversions. Do not repeat a reading from interpreted \
+in notes or not_simulated. Keep unclear, notes and not_simulated short, one item each."""
 
 
 # --------------------------------------------------------------------------- conversion

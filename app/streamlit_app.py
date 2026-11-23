@@ -216,8 +216,16 @@ def render_interpreted(s: Scenario) -> None:
                 st.markdown(f"**{field_label(path)}:** {note}")
 
 
-def render_not_simulated() -> None:
-    items = st.session_state.get("not_simulated") or []
+def render_conversions(s: Scenario) -> None:
+    shown = set(s.interpreted.values())
+    notes = [n for n in st.session_state.get("notes") or [] if n not in shown]
+    if notes:
+        st.caption("Conversions: " + " ".join(notes))
+
+
+def render_not_simulated(s: Scenario) -> None:
+    shown = set(s.interpreted.values())
+    items = [i for i in st.session_state.get("not_simulated") or [] if i not in shown]
     source = st.session_state.get("source")
     with st.container(border=True, key="not_simulated"):
         st.markdown("**Not simulated**")
@@ -228,9 +236,6 @@ def render_not_simulated() -> None:
             st.caption("The model reported no details that the simulation leaves out.")
         else:
             st.caption("This example has no details that the simulation leaves out.")
-        notes = st.session_state.get("notes") or []
-        if notes:
-            st.caption("Conversions: " + " ".join(notes))
 
 
 # --- Form ------------------------------------------------------------------------------
@@ -625,7 +630,8 @@ def main() -> None:
     render_comparison(result)
     st.subheader(f"Scenario · {scenario.name}")
     render_interpreted(scenario)
-    render_not_simulated()
+    render_conversions(scenario)
+    render_not_simulated(scenario)
     with st.expander("Edit the scenario", expanded=result is None):
         render_form(scenario, progress_slot)
 

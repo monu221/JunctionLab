@@ -239,6 +239,17 @@ class Scenario(_Strict):
             raise ValueError("on a T-junction the stem is always the minor road")
         return self
 
+    # ---- naming
+
+    def generated_name(self) -> str:
+        """A short name from the scenario, such as '4-arm signal, 600 veh/h each'."""
+        junction = "4-arm" if self.junction_type == "four_arm" else "T-junction"
+        control = {"signal": "signal", "priority": "priority", "all_way_stop": "all-way stop"}
+        demands = [round(a.demand_vph) for a in self.approaches.values()]
+        low, high = min(demands), max(demands)
+        volume = f"{low} veh/h each" if low == high else f"{low}–{high} veh/h"
+        return f"{junction} {control[self.control.kind]}, {volume}"
+
     # ---- form edits
 
     def is_assumed(self, path: str) -> bool:
@@ -307,7 +318,10 @@ class Scenario(_Strict):
         cfg = config or get_config()
         if "control.green_s" in data["assumed"]:
             data["control"]["green_s"] = None  # re-derived below from the edited values
-        return _validate_with_greens(data, cfg)
+        edited = _validate_with_greens(data, cfg)
+        if self.name == self.generated_name():  # a generated name follows the edited values
+            edited = edited.model_copy(update={"name": edited.generated_name()})
+        return edited
 
 
 # --------------------------------------------------------------------------- draft
@@ -466,8 +480,11 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
                 c.major_road, cfg.control.major_road_default, "control.major_road"
             )
 
+    name = (draft.name or "").strip()
+    if name.casefold() == "scenario":  # a placeholder, not a real name
+        name = ""
     data = {
-        "name": draft.name or "Scenario",
+        "name": name or "Scenario",
         "junction_type": draft.junction_type,
         "speed_limit_kmh": pick(
             draft.speed_limit_kmh, cfg.geometry.speed_limit_kmh, "speed_limit_kmh"
@@ -481,7 +498,8 @@ def resolve(draft: ScenarioDraft, config: Config | None = None) -> Scenario:
         "implicit": sorted(a for a in implicit if a not in draft.interpreted),
         "interpreted": dict(draft.interpreted),
     }
-    return _validate_with_greens(data, cfg)
+    scenario = _validate_with_greens(data, cfg)
+    return scenario if name else scenario.model_copy(update={"name": scenario.generated_name()})
 
 
 def _validate_with_greens(data: dict[str, Any], cfg: Config) -> Scenario:

@@ -64,6 +64,38 @@ def test_interpreted_demand_blocks_run_until_confirmed():
     assert button(at, "run").disabled is False
 
 
+def test_not_simulated_lists_only_ignored_details():
+    conversion = "15-minute counts multiplied by 4."
+    at = AppTest.from_file(APP, default_timeout=TIMEOUT_S)
+    at.session_state["scenario"] = scenario([ALL_DEMAND])
+    at.session_state["notes"] = [NOTE, conversion]
+    at.session_state["not_simulated"] = [NOTE, "pedestrian crossing on the west arm"]
+    at.session_state["source"] = "text"
+    at.run()
+    assert not at.exception
+    assert text_of(at).count(NOTE) == 1  # only in the interpreted-demand box
+    assert any(c.value == f"Conversions: {conversion}" for c in at.caption)
+    assert any(m.value == "- pedestrian crossing on the west arm" for m in at.markdown)
+
+
+def test_scenario_without_a_name_gets_one_that_follows_edits():
+    s = scenario()
+    assert s.name == "4-arm signal, 600 veh/h each"
+    edited = s.with_values({"approaches.north.demand_vph": 800})
+    assert edited.name == "4-arm signal, 600–800 veh/h"
+
+
+def test_stated_name_is_kept_after_an_edit():
+    draft, _ = llm.to_draft(interpretation(name="Station Road"))
+    edited = resolve(draft).with_values({"approaches.north.demand_vph": 800})
+    assert edited.name == "Station Road"
+
+
+def test_placeholder_name_is_replaced():
+    draft, _ = llm.to_draft(interpretation(name="Scenario"))
+    assert resolve(draft).name == "4-arm signal, 600 veh/h each"
+
+
 def test_form_edit_is_applied_and_invalid_edit_is_reported():
     at = app()
     button(at, "example_four_arm_signal").click().run()

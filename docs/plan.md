@@ -102,6 +102,8 @@ Recorded 2026-11-18, from the question round on the original plan.
   - Live testing found three model failures, now handled: a T-junction's missing arm written as an object of nulls, an invented 100% through share (prompt), and "on each road" not reported as interpreted (code check).
   - Run files live in a temporary folder and are deleted after the run; the results stay in the browser session.
   - **Proposed, please confirm:** a range cell such as "B-C" takes the colour of its worse grade.
+  - A scenario with no name gets one from its values, such as "4-arm signal, 600 veh/h each". A generated name updates when the values are edited; a stated name is kept.
+  - "Not simulated" lists only details the simulation ignores. Conversions are shown separately, and text already in the interpreted-demand box is not repeated.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 
