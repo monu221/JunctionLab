@@ -124,7 +124,7 @@ def test_movement_counts_and_remainder_share(limiter):
     assert len(s.control.green_s) == 4 and "control.green_s" in s.assumed
     assert s.speed_limit_kmh == 50 and "speed_limit_kmh" not in s.assumed
     assert "approaches.west.turning_shares_pct" in s.assumed
-    assert any("pedestrian" in n for n in result.notes)
+    assert any("pedestrian" in n for n in result.not_simulated)
 
 
 def test_partial_shares_on_t_junction(limiter):
@@ -149,6 +149,7 @@ def _interp(**kw):
         "understood": True,
         "unclear": [],
         "notes": [],
+        "not_simulated": [],
         "interpreted": [],
         "name": None,
         "junction_type": "four_arm",

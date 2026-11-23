@@ -17,6 +17,16 @@ pytest
 
 Defaults live in `config.yaml`.
 
+## App
+
+From the repository root on Windows:
+
+```sh
+.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py
+```
+
+The three examples work without an API key. Reading a description needs `GROQ_API_KEY`.
+
 ## Command line
 
 ```sh
@@ -27,7 +37,7 @@ python -m junctionlab webster                   # check simulated delay against 
 python -m junctionlab interpret "Crossroads, 800 veh/h from the north, ..." --out s.json --run
 ```
 
-`interpret` runs on the **free Groq tier** and needs `GROQ_API_KEY` in `.env` (see `.env.example`) or in the environment. The Streamlit app (M6) will use the same path. It uses at most 5 calls per session and 50 per day, and Groq's own rate limits also apply. Everything else works without a key.
+`interpret` runs on the **free Groq tier** and needs `GROQ_API_KEY` in `.env` (see `.env.example`) or in the environment. The Streamlit app uses the same path. It uses at most 5 calls per session and 50 per day, and Groq's own rate limits also apply. Everything else works without a key.
 
 If the model had to choose a reading of the demand (for example, counts with no time period), `--run` stops and shows its note. Correct the description, or add `--confirm-demand` to accept that reading.
 

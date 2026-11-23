@@ -16,6 +16,7 @@ def interpretation(**kw):
         "understood": True,
         "unclear": [],
         "notes": [],
+        "not_simulated": [],
         "interpreted": [],
         "name": None,
         "junction_type": "four_arm",

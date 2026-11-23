@@ -95,6 +95,13 @@ Recorded 2026-11-18, from the question round on the original plan.
   - The model must report its readings in `interpreted`. Code also marks demand as interpreted when the text gives no time period, because the model missed that case in testing.
   - Interpreted demand blocks the run until it is confirmed. `run_scenario` enforces this, so the M6 Run button cannot bypass it. M6 must show the note and call `Scenario.confirm()`. Editing a demand value makes it stated.
   - On the command line, `--confirm-demand` accepts the reading.
+- **Streamlit app (M6, 2026-11-23).**
+  - Edits are applied as a batch (**Apply edits** or **Run**), because turning shares must sum to 100% and cannot be changed one at a time.
+  - The model reports `not_simulated`, and a keyword check adds common details it leaves out. The earlier gap, a stated pedestrian crossing dropped from the notes, is covered this way.
+  - Counts with no unit that the model leaves empty now get their own message instead of "traffic is not stated".
+  - Live testing found three model failures, now handled: a T-junction's missing arm written as an object of nulls, an invented 100% through share (prompt), and "on each road" not reported as interpreted (code check).
+  - Run files live in a temporary folder and are deleted after the run; the results stay in the browser session.
+  - **Proposed, please confirm:** a range cell such as "B-C" takes the colour of its worse grade.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
 

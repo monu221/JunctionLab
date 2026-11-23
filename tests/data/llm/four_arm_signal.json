@@ -1,45 +1,42 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:35:15+00:00",
+  "recorded_utc": "2026-11-23T06:01:53+00:00",
   "text": "Four-arm junction, two lanes per approach. 800 veh/h from the north, 600 veh/h from the south, 500 veh/h each from the east and west. Fixed-time signal with a 90 s cycle.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-b9afe900-bdbb-4cec-844f-00ad044a1af0",
+      "id": "chatcmpl-6c3c8158-1093-4749-aedd-2064f03032cb",
       "object": "chat.completion",
-      "created": 1795386916,
+      "created": 1795413713,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":800,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":500,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\n  \"understood\": true,\n  \"unclear\": [],\n  \"notes\": [],\n  \"not_simulated\": [],\n  \"interpreted\": [],\n  \"name\": null,\n  \"junction_type\": \"four_arm\",\n  \"speed_limit_kmh\": null,\n  \"approach_length_m\": null,\n  \"approaches\": {\n    \"north\": {\n      \"demand_vph\": 800,\n      \"lane_count\": 2,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"south\": {\n      \"demand_vph\": 600,\n      \"lane_count\": 2,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"east\": {\n      \"demand_vph\": 500,\n      \"lane_count\": 2,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"west\": {\n      \"demand_vph\": 500,\n      \"lane_count\": 2,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    }\n  },\n  \"control\": {\n    \"kind\": \"signal\",\n    \"cycle_s\": 90,\n    \"phase_plan\": null,\n    \"green_s\": null,\n    \"major_road\": null\n  }\n}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.217888833,
-        "prompt_tokens": 2299,
-        "prompt_time": 0.180002843,
-        "completion_tokens": 943,
-        "completion_time": 2.4278960019999998,
-        "total_tokens": 3242,
-        "total_time": 2.6078988450000002,
-        "prompt_tokens_details": {
-          "cached_tokens": 512
-        },
+        "queue_time": 0.290376394,
+        "prompt_tokens": 2447,
+        "prompt_time": 0.135510659,
+        "completion_tokens": 916,
+        "completion_time": 2.123173205,
+        "total_tokens": 3363,
+        "total_time": 2.258683864,
         "completion_tokens_details": {
-          "reasoning_tokens": 641
+          "reasoning_tokens": 476
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_90620edd96",
+      "system_fingerprint": "fp_4727af4560",
       "x_groq": {
-        "id": "req_01m82pccedezfb716xmvcb4g76",
-        "seed": 968454979
+        "id": "req_01m83fy5mhe6m890hq0m0311fq",
+        "seed": 842347960
       },
       "service_tier": "on_demand"
     }

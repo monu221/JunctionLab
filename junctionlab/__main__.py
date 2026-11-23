@@ -215,6 +215,8 @@ def cmd_interpret(args: argparse.Namespace) -> int:
         print(f"    interpreted: {path}: {note}")
     for note in result.notes:
         print(f"  note: {note}")
+    for item in result.not_simulated:
+        print(f"  not simulated: {item}")
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(s.model_dump_json(indent=2) + "\n", encoding="utf-8")

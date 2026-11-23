@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -270,26 +271,36 @@ def run_scenario(
     seeds: list[int] | None = None,
     config: Config | None = None,
     parallel: bool = True,
+    on_progress: Callable[[str, int | None], None] | None = None,
 ) -> RunResult:
     """Build the SUMO files and run every seed. Results land in run_dir/seed_<n>/.
 
+    `on_progress(step, seed)` is called with step "baseline", "seed_started", "seed_done" or
+    "summary". Seeds run in worker threads, so the callback must be thread-safe.
+
     Raises UnconfirmedDemand if the model's reading of the demand is not confirmed yet.
     """
+    report = on_progress or (lambda _step, _seed: None)
     scenario.require_confirmed()
     cfg = config or get_config()
     run_dir = Path(run_dir or default_run_dir(scenario))
     seeds = list(seeds or cfg.simulation.seeds)
+    report("baseline", None)
     files = prepare(scenario, run_dir, cfg)
     baseline = measure_baseline(scenario, run_dir / "free_flow", cfg, seeds)
 
     def one(seed: int) -> SeedResult:
-        return run_seed(scenario, files, run_dir, seed, cfg)
+        report("seed_started", seed)
+        result = run_seed(scenario, files, run_dir, seed, cfg)
+        report("seed_done", seed)
+        return result
 
     if parallel and len(seeds) > 1:
         with ThreadPoolExecutor(max_workers=len(seeds)) as pool:
             results = list(pool.map(one, seeds))
     else:
         results = [one(s) for s in seeds]
+    report("summary", None)
     summary = summarize(scenario, {r.seed: r.dir for r in results}, cfg, baseline)
     (run_dir / "summary.json").write_text(summary.to_json(), encoding="utf-8")
     return RunResult(

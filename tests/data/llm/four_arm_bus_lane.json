@@ -1,45 +1,42 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:35:49+00:00",
+  "recorded_utc": "2026-11-23T06:02:27+00:00",
   "text": "Four-arm signal junction with a 90 s cycle and two lanes per approach. The west approach also has a bus lane carrying 12 buses/h. 700 veh/h from the west, 600 veh/h from the east, 450 veh/h from the north and 400 veh/h from the south.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-ef86473d-4b49-4fc3-8fae-d2d0d8a46770",
+      "id": "chatcmpl-1e8647d8-df4b-4040-bc59-ad5b91c53607",
       "object": "chat.completion",
-      "created": 1795386949,
+      "created": 1795413747,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":450,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":400,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":700,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":true,\"bus_demand_bph\":12,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"not_simulated\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"four_arm\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":{\"demand_vph\":450,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"east\":{\"demand_vph\":600,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":400,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":700,\"lane_count\":2,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":true,\"bus_demand_bph\":12,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"signal\",\"cycle_s\":90,\"phase_plan\":null,\"green_s\":null,\"major_road\":null}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.218412735,
-        "prompt_tokens": 2315,
-        "prompt_time": 0.075527216,
-        "completion_tokens": 566,
-        "completion_time": 1.291623538,
-        "total_tokens": 2881,
-        "total_time": 1.367150754,
-        "prompt_tokens_details": {
-          "cached_tokens": 512
-        },
+        "queue_time": 0.055131139,
+        "prompt_tokens": 2463,
+        "prompt_time": 0.151610725,
+        "completion_tokens": 881,
+        "completion_time": 1.829036629,
+        "total_tokens": 3344,
+        "total_time": 1.980647354,
         "completion_tokens_details": {
-          "reasoning_tokens": 264
+          "reasoning_tokens": 574
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_c868cf1eaa",
+      "system_fingerprint": "fp_4200b3f836",
       "x_groq": {
-        "id": "req_01m82pdenzezsrbgpt1qh1420m",
-        "seed": 468329237
+        "id": "req_01m83fz7xhehfvavtzn3vdb9tp",
+        "seed": 1484415498
       },
       "service_tier": "on_demand"
     }

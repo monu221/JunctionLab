@@ -12,7 +12,8 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
   - **Anthropic (optional, paid):** Claude Haiku 5.5 through the Messages API, with `output_config.format`.
 - The schema (`Interpretation` in `junctionlab/llm.py`) has one field per arm and per movement. Structured output needs every object closed, so it cannot use the free-form maps of the scenario model. Every field is present and set to null when the text does not state it.
 - The instructions tell the model to fill only what the text states and leave the rest null. It must not guess, because a guess would hide an assumption that the form would otherwise highlight.
-- Conversions the model makes are listed in `notes`: counts for another period scaled to an hour, counts per movement summed into demand and turning shares. So are stated details the schema cannot hold, such as pedestrians.
+- Conversions the model makes are listed in `notes`: counts for another period scaled to an hour, counts per movement summed into demand and turning shares.
+- Stated details the schema or simulation cannot represent, such as pedestrians, are listed in `not_simulated` and shown before the run. A keyword check in code adds common ones the model leaves out.
 - Python then turns the answer into a draft and fills defaults as below:
   - Turning shares: if two of three are given, the third is what is left to 100%. Movements that lead to a missing arm are 0. If fewer than two are given, the defaults are used and marked as assumed.
   - If the model says the text is not a junction, if a required fact is missing, or if the result fails validation, the user is asked to rephrase. The message lists every problem found.
@@ -22,6 +23,7 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 - The API key comes from Streamlit secrets, or from the environment or `.env`: `GROQ_API_KEY` or `ANTHROPIC_API_KEY`, depending on the provider.
 - Tests replay recorded responses through a mock transport, so CI makes no calls. Groq recordings are real (`tests/data/llm/record_groq.py`). Anthropic fixtures are synthetic.
 - **Live check (2026-11-22, `tests/data/llm/eval_groq.py`).** 10 descriptions scored against hand-written expected values: 10 correct after the field-state change (9 before). The prompt and the time-period check were written with these failures in view, so 5 further unseen descriptions were also run, and all 5 were handled safely. This is a small sample, not an accuracy estimate.
+- **Live check after M6 (2026-11-23).** The same 10 descriptions, with the `not_simulated` field: 9 correct at first, 10 after adding the per-road check below. That check was written with the failure in view, and no new unseen descriptions were scored.
 
 | Field | Example | Rules |
 | --- | --- | --- |
@@ -46,7 +48,7 @@ The LLM returns a scenario in a fixed JSON schema. Python validates it with Pyda
 | Assumed | A default from `config.yaml` | Highlighted, except features that are simply unused, such as no bus lane |
 
 - The model lists its readings in the `interpreted` field of its answer. Exact arithmetic on stated facts is not an interpretation: scaling counts whose period is stated, adding movements, or taking the remainder to 100%.
-- Code also marks demand as interpreted when the text states no time period at all, because the model does not report this reliably.
+- Code also marks demand as interpreted when the text states no time period at all, or gives a volume per road or for both directions, because the model does not report these reliably.
 - **Interpreted demand must be confirmed before a run.** `run_scenario` refuses to start until then. Editing a demand value makes it stated. Other interpreted fields are highlighted but do not block the run.
 
 **Fixed-time signal.** Needs a cycle length. Phase plans:

@@ -2,7 +2,7 @@
 
 Used until live recordings exist: `python -m junctionlab interpret --record FILE "text"`
 replaces a file with a real response ("source": "live"). Run from the repo root:
-    python tests/data/llm/make_synthetic.py
+    python tests/data/llm_anthropic/make_synthetic.py
 """
 
 import json
@@ -37,13 +37,25 @@ def control(kind, **kw):
     return c
 
 
-def interp(approaches, ctrl, *, jt, name=None, understood=True, unclear=(), notes=(), **kw):
+def interp(
+    approaches,
+    ctrl,
+    *,
+    jt,
+    name=None,
+    understood=True,
+    unclear=(),
+    notes=(),
+    not_simulated=(),
+    **kw,
+):
     arms = {arm: None for arm in ("north", "east", "south", "west")}
     arms.update(approaches)
     out = {
         "understood": understood,
         "unclear": list(unclear),
         "notes": list(notes),
+        "not_simulated": list(not_simulated),
         "interpreted": [],
         "name": name,
         "junction_type": jt,
@@ -177,10 +189,8 @@ write(
             jt="four_arm",
             name="Signalised crossroads (from peak counts)",
             speed_limit_kmh=50,
-            notes=[
-                "15-minute counts multiplied by 4 to get vehicles per hour.",
-                "The pedestrian crossing on the west arm is not modelled.",
-            ],
+            notes=["15-minute counts multiplied by 4 to get vehicles per hour."],
+            not_simulated=["pedestrian crossing on the west arm"],
         ),
         4,
     ),

@@ -80,6 +80,10 @@ class LlmUnavailable(LlmError):
     pass
 
 
+class RateLimited(LlmUnavailable):
+    """The provider's free-tier limit is reached; the bundled examples still work."""
+
+
 # --------------------------------------------------------------------------- LLM schema
 
 
@@ -175,7 +179,11 @@ class Interpretation(_Llm):
         "approach, control type): missing or contradictory. Empty if none."
     )
     notes: list[str] = Field(
-        description="Conversions you made and stated details the schema cannot hold."
+        description="Conversions you made to fill the schema, such as scaling counts to an hour."
+    )
+    not_simulated: list[str] = Field(
+        description="Each detail in the text that the schema or simulation cannot represent, as "
+        "a short phrase, such as 'pedestrian crossing on the west arm'. Empty if none."
     )
     interpreted: list[InterpretedField] = Field(
         description="Every field where the text supports more than one reasonable value and "
@@ -200,7 +208,7 @@ Conventions:
 - An approach is named after the direction its traffic comes from: "traffic from the north", \
 "northbound traffic entering from the south" is the south approach.
 - junction_type is four_arm (a crossroads) or t_junction (three arms). On a T-junction leave \
-the missing arm null.
+the missing arm null itself, not an object of nulls.
 - Lanes are listed from the leftmost to the rightmost. Each lane lists its movements (left, \
 through, right) in that order. Give lanes only when the text says what each lane is for; \
 otherwise give lane_count if the number of lanes is stated.
@@ -210,7 +218,8 @@ convert them to an hourly rate. If it gives counts per movement, add them up for
 and give the turning shares in percent. Say what you converted in notes.
 - Turning shares are percentages of the approach's vehicles. Give them only if the text \
 states them or the counts that determine them; if two of the three are stated, the third is \
-what is left to 100. Movements that lead to a missing arm are 0.
+what is left to 100. Movements that lead to a missing arm are 0. Leave turning_shares_pct null \
+for every approach whose shares the text does not give; never fill a gap with 100% through.
 - Signal: cycle_s, phase_plan and green_s only if stated. Priority rule: major_road only if \
 stated. "Stop signs on all arms" or "4-way stop" is all_way_stop.
 
@@ -230,8 +239,11 @@ or use a null arm if it is all of them. Do not list exact arithmetic on stated f
 counts whose period is stated, adding movements, the remainder to 100), and do not list a value \
 just because it is rounded or says "about". Facts that are simply missing are not interpreted.
 
-Put details you cannot represent (pedestrians, cycle lanes, parking, time of day) in notes \
-rather than dropping them silently. Keep unclear and notes short, one sentence per item."""
+List every stated detail you cannot represent in not_simulated, so the user sees it before \
+the run: pedestrians and crossings, cyclists and cycle lanes, parking, trams, nearby land use, \
+time of day, protected left-turn phases, turn bays, slip lanes, actuated or adaptive signals, \
+gradients, weather. Use notes only for conversions. Keep unclear, notes and not_simulated \
+short, one item each."""
 
 
 # --------------------------------------------------------------------------- conversion
@@ -239,6 +251,20 @@ rather than dropping them silently. Keep unclear and notes short, one sentence p
 NO_PERIOD_NOTE = (
     "The text gives traffic counts with no time period; they were read as vehicles per hour, "
     "but they could cover another period."
+)
+PER_ROAD_NOTE = (
+    "The text gives the volume per road; it was read as the volume on each approach, but it "
+    "could be both directions together."
+)
+_PER_ROAD = re.compile(
+    r"\b(?:each|every|per|both)\s+(?:of\s+the\s+)?(?:roads?|streets?)\b"
+    r"|\bper\s+direction\s+pair\b|\b(?:in\s+)?both\s+directions\b|\bboth\s+ways\b"
+    r"|\btwo[\s-]way\s+(?:flow|volume|traffic)\b",
+    re.IGNORECASE,
+)
+COUNTS_WITHOUT_UNITS = (
+    "the text lists traffic counts but gives no unit or time period; say what they measure, "
+    'for example "800 veh/h from the north"'
 )
 _RUSH_HOUR = re.compile(r"\brush[\s-]*hours?\b", re.I)
 _CYCLE_TIME = re.compile(r"\d+(\.\d+)?[\s-]*(minutes?|mins?)\b[\s-]*(signal\s+)?cycle", re.I)
@@ -248,6 +274,22 @@ _PERIOD_TEXT = re.compile(
 )
 _DEMAND_TEXT = re.compile(r"demand|volume|traffic|veh", re.IGNORECASE)
 _JUNCTION_TEXT = re.compile(r"junction.?type|t-junction|four.arm|\barms?\b", re.IGNORECASE)
+# A number with no unit after it: "N 800", "800, 600", but not "90 s", "2 lanes" or "4-arm".
+# Case-sensitive, so the compass letters in "800 S 600 E" are not read as seconds.
+_BARE_NUMBER = re.compile(
+    r"(?<![\d.])\d+(?:\.\d+)?(?!\d|\.\d)(?!\s*-?\s*(?:%|percent|s\b|secs?\b|seconds?\b|m\b|"
+    r"met(?:er|re)s?\b|km|kph|mph|lanes?\b|arms?\b|way\b|legs?\b|phases?\b|cycle\b|bus))"
+)
+# Backstop for details the model may leave out of not_simulated: (pattern, label).
+_NOT_SIMULATED_TEXT = (
+    (r"pedestrian|zebra|crosswalk|foot(way|path)|sidewalk", "Pedestrians or pedestrian crossings"),
+    (r"cyclists?\b|bicycle|\bbikes?\b|cycle[\s-]*(lane|path|track)", "Cyclists or cycle lanes"),
+    (r"\bpark(ing|ed)\b", "Parking"),
+    (r"\btrams?\b|light rail|level crossing", "Trams or rail"),
+    (r"protected left|left[\s-]*turn (arrow|phase)", "Protected left-turn phases"),
+    (r"\bactuated\b|\badaptive\b|demand[\s-]responsive", "Actuated or adaptive signals"),
+    (r"turn(ing)?[\s-]*(bay|pocket)|slip[\s-]*(lane|road)", "Turn bays or slip lanes"),
+)
 
 
 def _shares(
@@ -273,14 +315,38 @@ def _shares(
     return {m: float(v) for m, v in values.items() if v is not None}
 
 
-def to_draft(interp: Interpretation) -> tuple[ScenarioDraft, list[str]]:
+def _states_a_period(text: str) -> bool:
+    return bool(_PERIOD_TEXT.search(_CYCLE_TIME.sub(" ", _RUSH_HOUR.sub(" ", text))))
+
+
+def _lists_counts_without_units(text: str, approaches: int) -> bool:
+    """True if the text has a unit-less number for every approach and no time period."""
+    return not _states_a_period(text) and len(_BARE_NUMBER.findall(text)) >= approaches
+
+
+def not_simulated_items(text: str, reported: list[str]) -> list[str]:
+    """The model's list, plus known details in the text that it left out."""
+    items = _dedupe([r.strip() for r in reported if r.strip()])
+    for pattern, label in _NOT_SIMULATED_TEXT:
+        if re.search(pattern, text, re.I) and not any(re.search(pattern, i, re.I) for i in items):
+            items.append(label)
+    return items
+
+
+def to_draft(interp: Interpretation, text: str = "") -> tuple[ScenarioDraft, list[str]]:
     """Turn the LLM output into a draft. Raises InterpretationError if something required is
-    missing. Returns the draft and notes for the user."""
+    missing. Returns the draft and notes for the user. `text` lets the message tell counts
+    without units apart from traffic that is really missing."""
     notes = list(interp.notes)
     if not interp.understood:
         raise InterpretationError(interp.unclear or ["the text does not describe a junction"])
     given = {arm: getattr(interp.approaches, arm) for arm in ARMS}
     given = {arm: a for arm, a in given.items() if a is not None}
+    if interp.junction_type == "t_junction" and len(given) == 4:
+        # The model sometimes writes the missing arm as an object of nulls instead of null.
+        empty = [arm for arm, a in given.items() if all(v is None for v in a.model_dump().values())]
+        if len(empty) == 1:
+            del given[empty[0]]
     no_demand = [arm for arm, a in given.items() if a.demand_vph is None]
     # Python reports missing demand once, so drop the model's own lines about it.
     problems = [u for u in interp.unclear if not (no_demand and _DEMAND_TEXT.search(u))]
@@ -290,7 +356,9 @@ def to_draft(interp: Interpretation) -> tuple[ScenarioDraft, list[str]]:
         problems.append("the traffic control (signal, priority or all-way stop) is not stated")
     if not given:
         problems.append("no approaches with traffic are described")
-    if no_demand:
+    if no_demand and _lists_counts_without_units(text, len(given)):
+        problems.append(COUNTS_WITHOUT_UNITS)
+    elif no_demand:
         arms = (
             ", ".join(no_demand[:-1]) + " and " + no_demand[-1] if no_demand[1:] else no_demand[0]
         )
@@ -360,12 +428,26 @@ def _interpreted_paths(
     return out
 
 
+def _flag_per_road_volume(text: str, draft: ScenarioDraft) -> ScenarioDraft:
+    """Mark demand as interpreted when a volume is given per road rather than per approach.
+
+    "600 an hour on each road" may be per direction or both together. A check in code, because
+    the model does not report this case reliably.
+    """
+    if not _PER_ROAD.search(text):
+        return draft
+    interpreted = dict(draft.interpreted)
+    for arm in draft.approaches:
+        interpreted.setdefault(f"approaches.{arm}.demand_vph", PER_ROAD_NOTE)
+    return draft.model_copy(update={"interpreted": interpreted})
+
+
 def _flag_missing_period(text: str, draft: ScenarioDraft) -> ScenarioDraft:
     """Mark demand as interpreted when the text states no time period at all.
 
     A check in code, because the model does not report this case reliably.
     """
-    if _PERIOD_TEXT.search(_CYCLE_TIME.sub(" ", _RUSH_HOUR.sub(" ", text))):
+    if _states_a_period(text):
         return draft
     interpreted = dict(draft.interpreted)
     for arm, a in draft.approaches.items():
@@ -525,6 +607,7 @@ class Interpreted:
     draft: ScenarioDraft
     notes: list[str] = field(default_factory=list)
     interpretation: Interpretation | None = None
+    not_simulated: list[str] = field(default_factory=list)
 
 
 OUTPUT_FORMAT = {"type": "json_schema", "schema": anthropic.transform_schema(Interpretation)}
@@ -588,10 +671,11 @@ def _groq_error(response: httpx2.Response) -> LlmError:
     except (ValueError, AttributeError):
         error = {}
     if status == 429:
-        return LlmUnavailable(
+        return RateLimited(
             "The free Groq tier's rate limit is reached. "
             + _wait_text(response.headers.get("retry-after"))
-            + " You can still edit the scenario in the form or start from a bundled example."
+            + " You can still edit the scenario in the form or start from a bundled example, "
+            "which needs no API call."
         )
     if status == 401:
         return LlmUnavailable("The API key was rejected.")
@@ -673,13 +757,19 @@ def interpret(
     client = client or make_client(provider=cfg.llm.provider)
     (limiter or CallLimiter(cfg)).reserve(session)
     interp = call_llm(text, client, cfg)
-    draft, notes = to_draft(interp)
-    draft = _flag_missing_period(text, draft)
+    draft, notes = to_draft(interp, text)
+    draft = _flag_per_road_volume(text, _flag_missing_period(text, draft))
     try:
         scenario = resolve(draft, cfg)
     except ValidationError as e:
         raise InterpretationError(_messages(e)) from e
-    return Interpreted(scenario=scenario, draft=draft, notes=notes, interpretation=interp)
+    return Interpreted(
+        scenario=scenario,
+        draft=draft,
+        notes=notes,
+        interpretation=interp,
+        not_simulated=not_simulated_items(text, interp.not_simulated),
+    )
 
 
 # --------------------------------------------------------------------------- recordings

@@ -1,42 +1,42 @@
 {
   "source": "live",
-  "recorded_utc": "2026-11-22T22:35:32+00:00",
+  "recorded_utc": "2026-11-23T06:02:10+00:00",
   "text": "T-junction with a priority rule. The main road runs east-west with 350 veh/h from each direction. The side road joins from the south with 140 veh/h. One lane on each approach.",
   "response": {
     "status": 200,
     "body": {
-      "id": "chatcmpl-d0d9418e-a7eb-4495-8570-10b0fc26bbbe",
+      "id": "chatcmpl-849b6b09-ac63-41d2-b419-2c0b0e167ae7",
       "object": "chat.completion",
-      "created": 1795386933,
+      "created": 1795413730,
       "model": "openai/gpt-oss-120b",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "{\n  \"understood\": true,\n  \"unclear\": [],\n  \"notes\": [],\n  \"interpreted\": [],\n  \"name\": null,\n  \"junction_type\": \"t_junction\",\n  \"speed_limit_kmh\": null,\n  \"approach_length_m\": null,\n  \"approaches\": {\n    \"north\": null,\n    \"east\": {\n      \"demand_vph\": 350,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"west\": {\n      \"demand_vph\": 350,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    },\n    \"south\": {\n      \"demand_vph\": 140,\n      \"lane_count\": 1,\n      \"lanes\": null,\n      \"turning_shares_pct\": null,\n      \"heavy_vehicle_share_pct\": null,\n      \"bus_lane\": null,\n      \"bus_demand_bph\": null,\n      \"bus_right_share_pct\": null\n    }\n  },\n  \"control\": {\n    \"kind\": \"priority\",\n    \"cycle_s\": null,\n    \"phase_plan\": null,\n    \"green_s\": null,\n    \"major_road\": \"east-west\"\n  }\n}"
+            "content": "{\"understood\":true,\"unclear\":[],\"notes\":[],\"not_simulated\":[],\"interpreted\":[],\"name\":null,\"junction_type\":\"t_junction\",\"speed_limit_kmh\":null,\"approach_length_m\":null,\"approaches\":{\"north\":null,\"east\":{\"demand_vph\":350,\"lane_count\":1,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"west\":{\"demand_vph\":350,\"lane_count\":1,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null},\"south\":{\"demand_vph\":140,\"lane_count\":1,\"lanes\":null,\"turning_shares_pct\":null,\"heavy_vehicle_share_pct\":null,\"bus_lane\":null,\"bus_demand_bph\":null,\"bus_right_share_pct\":null}},\"control\":{\"kind\":\"priority\",\"cycle_s\":null,\"phase_plan\":null,\"green_s\":null,\"major_road\":\"east-west\"}}"
           },
           "logprobs": null,
           "finish_reason": "stop"
         }
       ],
       "usage": {
-        "queue_time": 0.05587907,
-        "prompt_tokens": 2295,
-        "prompt_time": 0.095877275,
-        "completion_tokens": 850,
-        "completion_time": 1.753999297,
-        "total_tokens": 3145,
-        "total_time": 1.8498765719999999,
+        "queue_time": 0.243321561,
+        "prompt_tokens": 2443,
+        "prompt_time": 0.132351193,
+        "completion_tokens": 896,
+        "completion_time": 1.892942679,
+        "total_tokens": 3339,
+        "total_time": 2.025293872,
         "completion_tokens_details": {
-          "reasoning_tokens": 488
+          "reasoning_tokens": 637
         }
       },
       "usage_breakdown": null,
-      "system_fingerprint": "fp_f640395b96",
+      "system_fingerprint": "fp_c868cf1eaa",
       "x_groq": {
-        "id": "req_01m82pcy1we5d95hxpre978j7q",
-        "seed": 1851601708
+        "id": "req_01m83fypy3eha8amhwtk8qqq4r",
+        "seed": 805094335
       },
       "service_tier": "on_demand"
     }
