@@ -110,3 +110,8 @@ agent:
     results_dir: var/agent_eval      # resumable; relative to the repo root
     max_parallel_runs: 3             # SUMO processes at once; set by the user on 2026-11-23
     min_free_memory_gb: 2.0          # proposed: stop cleanly before a simulation below this
+    # Set by the user on 2026-11-24: in the evaluation only, a 429 waits for Groq's reported
+    # reset (or the default) and the same run continues. The app still stops at a 429.
+    rate_limit_waits: 10             # per agent run
+    rate_limit_default_wait_s: 60    # when Groq reports no reset time
+    pause_between_runs_s: 60         # between agent runs

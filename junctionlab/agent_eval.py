@@ -18,8 +18,10 @@ import json
 import random
 import statistics
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -173,6 +175,8 @@ class Store:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.outcomes = self._read("outcomes.json")
         self.agent_runs: dict[str, Any] = self._read("agent_runs.json")
+        # Runs a 429 ended. Kept apart from the results, which only hold complete runs.
+        self.rate_limited: dict[str, Any] = self._read("rate_limited.json")
 
     def _read(self, name: str) -> dict[str, Any]:
         path = self.dir / name
@@ -195,6 +199,21 @@ class Store:
     def save_agent_run(self, key: str, run: dict[str, Any]) -> None:
         self.agent_runs[key] = run
         self._write("agent_runs.json", self.agent_runs)
+
+    def save_rate_limited(self, key: str, run: dict[str, Any]) -> None:
+        """Record a run that a 429 ended, under a new id so earlier ones are kept."""
+        self.rate_limited[f"{key}#{len(self.rate_limited) + 1}"] = run
+        self._write("rate_limited.json", self.rate_limited)
+
+    def move_rate_limited_runs(self) -> list[str]:
+        """Move saved agent runs that a 429 ended into the rate-limited record, so they run
+        again. Returns their keys."""
+        moved = [k for k, r in self.agent_runs.items() if r.get("stop_reason") == "rate_limited"]
+        for key in moved:
+            self.save_rate_limited(key, self.agent_runs.pop(key))
+        if moved:
+            self._write("agent_runs.json", self.agent_runs)
+        return moved
 
 
 class MemoryLow(RuntimeError):
@@ -336,10 +355,14 @@ def run_agent_stage(
     pause_s: float | None = None,
     summary_simulator: agent.Simulate | None = None,
     max_runs: int | None = None,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> int:
-    """Run missing agent cases, at most `max_runs` of them. Stops before a case that the daily
-    limit might cut short, and at the first 429. A stopped run is saved as stopped, and is not
-    retried."""
+    """Run missing agent cases one at a time, at most `max_runs` of them, with a pause between
+    runs. Stops before a case that the daily limit might cut short.
+
+    A 429 waits for the reported reset and the run continues (config `rate_limit_waits`). A run
+    that a 429 still ends (a per-day quota, or too many waits) is not saved as a result: it goes
+    to the rate-limited record, the stage stops, and the run starts again on the next call."""
     cfg = config or get_config()
     store = store or Store(cfg.agent.evaluation.results_dir)
     simulator = simulator or real_simulator(cfg)
@@ -348,6 +371,10 @@ def run_agent_stage(
     train = _train(cfg)
     workers = cfg.agent.evaluation.max_parallel_runs
     simulate = summary_simulator or (lambda d: agent.simulate_summary(d, train, cfg, workers))
+    for key in store.move_rate_limited_runs():
+        progress(f"{key}: ended by a 429 earlier; moved to the rate-limited record, runs again.")
+    ev = cfg.agent.evaluation
+    between = ev.pause_between_runs_s if pause_s is None else pause_s
     done = 0
     for junction, s in junctions(cfg).items():
         for name, goal in GOALS.items():
@@ -360,6 +387,9 @@ def run_agent_stage(
                 if limiter.remaining_today() < cfg.agent.max_llm_calls_per_goal - 1:
                     progress("Daily agent limit is near. Run this stage again tomorrow.")
                     return done
+                if done:
+                    sleep(between)
+                progress(f"{key}: started")
                 result = agent.run_agent(
                     s,
                     goal,
@@ -368,26 +398,36 @@ def run_agent_stage(
                     config=cfg,
                     limiter=limiter,
                     pause_s=pause_s,
+                    rate_limit_waits=ev.rate_limit_waits,
+                    default_wait_s=ev.rate_limit_default_wait_s,
+                    on_wait=lambda s_, n, k=key: progress(f"{k}: 429, waiting {s_:.0f} s ({n})"),
+                    sleep=sleep,
                 )
+                record = {
+                    "plan": result.best.control.phase_plan,
+                    "cycle_s": result.best.control.cycle_s,
+                    "green_s": list(result.best.control.green_s),
+                    "runs_used": result.runs_used,
+                    "best_at_run": result.best_at_run,
+                    "llm_calls": result.llm_calls,
+                    "stop_reason": result.stop_reason,
+                    "rate_limit_waits": result.rate_limit_waits,
+                }
+                if result.stop_reason == "rate_limited":
+                    record["message"] = result.message
+                    record["date"] = datetime.now(UTC).date().isoformat()
+                    store.save_rate_limited(key, record)
+                    progress(f"{key}: ended by the rate limit, not saved as a result.")
+                    progress(f"Stopped. {result.message}")
+                    return done
                 store.outcomes[_key(junction, result.best, train)] = result.best_outcome.to_dict()
                 store._write("outcomes.json", store.outcomes)
-                store.save_agent_run(
-                    key,
-                    {
-                        "plan": result.best.control.phase_plan,
-                        "cycle_s": result.best.control.cycle_s,
-                        "green_s": list(result.best.control.green_s),
-                        "runs_used": result.runs_used,
-                        "best_at_run": result.best_at_run,
-                        "llm_calls": result.llm_calls,
-                        "stop_reason": result.stop_reason,
-                    },
-                )
+                store.save_agent_run(key, record)
                 done += 1
-                progress(f"{key}: {result.status}, {result.runs_used} runs, {result.stop_reason}")
-                if result.stop_reason == "rate_limited":
-                    progress(f"Stopped by the rate limit. {result.message}")
-                    return done
+                progress(
+                    f"{key}: {result.status}, {result.runs_used} runs, {result.stop_reason}, "
+                    f"{result.rate_limit_waits} rate-limit waits"
+                )
                 if max_runs is not None and done >= max_runs:
                     return done
     return done
@@ -490,10 +530,7 @@ def build_report(
             ]
             used = statistics.fmean(r["runs_used"] for r in agent_runs)
             found = statistics.fmean(r["best_at_run"] for r in agent_runs)
-            stopped = sum(r["stop_reason"] == "rate_limited" for r in agent_runs)
             agent_text = f"{used:.1f} (best at run {found:.1f})"
-            if stopped:
-                agent_text += f"; {stopped} stopped by rate limit"
             randoms = [
                 _best(goal, junction, designs, store, simulator, cfg)
                 for designs in _random_sets(junction, s, cfg)
@@ -539,9 +576,38 @@ def build_report(
                 *[f"| {r.method} | {r.result} | {r.recheck} | {r.goal} | {r.runs} |" for r in rows],
                 "",
             ]
+    lines += _free_tier_note(store)
     return "\n".join(lines)
 
 
+def _free_tier_note(store: Store) -> list[str]:
+    """How often the free tier's rate limit got in the way. Not an agent result."""
+    ended = len(store.rate_limited)
+    waits = sum(r.get("rate_limit_waits", 0) for r in store.agent_runs.values())
+    runs_waited = sum(bool(r.get("rate_limit_waits")) for r in store.agent_runs.values())
+    return [
+        "## Note on the free tier",
+        "",
+        f"A 429 from Groq's free tier ended {ended} agent run(s) early. Those runs were set "
+        "aside and run again from the start; they are not in the tables above. Of the runs "
+        f"that are, {runs_waited} waited for the rate limit to reset ({waits} wait(s) in "
+        "total) and then continued the same run. A wait does not change what the model sees "
+        "or how many calls it gets.",
+        "",
+    ]
+
+
+SUMMARY_START = "<!-- summary -->"
+SUMMARY_END = "<!-- /summary -->"
+
+
 def write_report(config: Config | None = None) -> Path:
-    REPORT_PATH.write_text(build_report(config), encoding="utf-8")
+    """Write the report, keeping the hand-written summary of an earlier report, if any."""
+    report = build_report(config)
+    old = REPORT_PATH.read_text(encoding="utf-8") if REPORT_PATH.is_file() else ""
+    if SUMMARY_START in old and SUMMARY_END in old:
+        summary = old[old.index(SUMMARY_START) : old.index(SUMMARY_END) + len(SUMMARY_END)]
+        title, _, rest = report.partition("\n\n")
+        report = f"{title}\n\n{summary}\n\n{rest}"
+    REPORT_PATH.write_text(report, encoding="utf-8")
     return REPORT_PATH

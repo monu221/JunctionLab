@@ -81,7 +81,16 @@ class LlmUnavailable(LlmError):
 
 
 class RateLimited(LlmUnavailable):
-    """The provider's free-tier limit is reached; the bundled examples still work."""
+    """The provider's free-tier limit is reached; the bundled examples still work.
+
+    `wait_s` is the provider's reported wait, if any. `daily` is True when the limit is a
+    per-day quota, which waiting a minute does not clear.
+    """
+
+    def __init__(self, message: str, wait_s: float | None = None, daily: bool = False):
+        super().__init__(message)
+        self.wait_s = wait_s
+        self.daily = daily
 
 
 # --------------------------------------------------------------------------- LLM schema
@@ -671,11 +680,20 @@ def _groq_error(response: httpx2.Response) -> LlmError:
     except (ValueError, AttributeError):
         error = {}
     if status == 429:
+        retry_after = response.headers.get("retry-after")
+        try:
+            wait_s = float(retry_after)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            wait_s = None
+        daily = "per day" in str(error.get("message", "")).lower()
         return RateLimited(
-            "The free Groq tier's rate limit is reached. "
-            + _wait_text(response.headers.get("retry-after"))
+            ("The free Groq tier's daily quota is used up. " if daily else "")
+            + "The free Groq tier's rate limit is reached. "
+            + _wait_text(retry_after)
             + " You can still edit the scenario in the form or start from a bundled example, "
-            "which needs no API call."
+            "which needs no API call.",
+            wait_s=wait_s,
+            daily=daily,
         )
     if status == 401:
         return LlmUnavailable("The API key was rejected.")

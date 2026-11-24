@@ -31,6 +31,12 @@ RATE_LIMITED = (
     {"error": {"message": "rate limit", "code": "rate_limit_exceeded"}},
     {"retry-after": "15"},
 )
+NO_RESET = (429, {"error": {"message": "rate limit", "code": "rate_limit_exceeded"}}, {})
+DAILY = (
+    429,
+    {"error": {"message": "Rate limit reached on tokens per day (TPD)", "code": "rate_limit"}},
+    {"retry-after": "600"},
+)
 
 
 def base():
@@ -277,6 +283,43 @@ def test_rate_limit_stops_cleanly_with_the_best_design(limiter):
     assert len(c._http._transport.requests) == 2  # a 429 is not retried
 
 
+def run_waiting(turns, limiter, waits=10):
+    slept = []
+    c = client(turns)
+    result = agent.run_agent(
+        base(),
+        GOAL,
+        c,
+        simulate=fake_summary,
+        limiter=limiter,
+        pause_s=0,
+        rate_limit_waits=waits,
+        sleep=slept.append,
+    )
+    return result, slept, c
+
+
+def test_evaluation_mode_waits_out_a_429_and_continues(limiter):
+    turns = [tool_turn(propose(60), simulate("D1")), RATE_LIMITED, NO_RESET, text_turn()]
+    turns.append(text_turn())
+    result, slept, c = run_waiting(turns, limiter)
+    assert slept[:2] == [15.0, 60.0]  # Groq's reset time, else the default
+    assert result.rate_limit_waits == 2
+    assert result.stop_reason == "agent_finished"
+    assert result.llm_calls == len(c._http._transport.requests) - 2  # retries are not counted
+
+
+def test_evaluation_mode_stops_after_the_last_allowed_wait(limiter):
+    turns = [tool_turn(propose(60), simulate("D1")), RATE_LIMITED, RATE_LIMITED]
+    result, slept, _c = run_waiting(turns, limiter, waits=1)
+    assert (result.stop_reason, result.rate_limit_waits, slept) == ("rate_limited", 1, [15.0])
+
+
+def test_evaluation_mode_does_not_wait_out_the_daily_quota(limiter):
+    result, slept, _c = run_waiting([tool_turn(propose(60), simulate("D1")), DAILY], limiter)
+    assert (result.stop_reason, result.rate_limit_waits, slept) == ("rate_limited", 0, [])
+
+
 def test_server_error_stops_with_the_best_design(limiter):
     turns = [tool_turn(propose(60), simulate("D1")), (500, {"error": {"message": "x"}}, {})]
     result = run(turns, limiter)
@@ -424,6 +467,7 @@ def test_report_compares_all_methods(tmp_path, limiter):
     for text in ("Agent", "Webster", "Random search", "Grid optimum", "Unused seeds"):
         assert text in report
     assert report.count("### G1") == 2
+    assert "Note on the free tier" in report
 
 
 def test_agent_stage_respects_max_runs(tmp_path, limiter):
@@ -444,11 +488,11 @@ def test_agent_stage_respects_max_runs(tmp_path, limiter):
     assert done == len(store.agent_runs) == 2
 
 
-def test_agent_stage_saves_a_rate_limited_run_and_stops(tmp_path, limiter):
+def test_agent_stage_keeps_a_run_ended_by_a_429_out_of_the_results(tmp_path, limiter):
     cfg = get_config()
     store = agent_eval.Store(tmp_path)
     done = agent_eval.run_agent_stage(
-        client([RATE_LIMITED]),
+        client([DAILY]),
         cfg,
         store,
         fake_outcome,
@@ -456,9 +500,51 @@ def test_agent_stage_saves_a_rate_limited_run_and_stops(tmp_path, limiter):
         progress=lambda _m: None,
         pause_s=0,
         summary_simulator=fake_summary,
+        sleep=lambda _s: None,
     )
-    assert done == 1
-    assert next(iter(store.agent_runs.values()))["stop_reason"] == "rate_limited"
+    assert done == 0
+    assert store.agent_runs == {}
+    [(key, run)] = store.rate_limited.items()
+    assert key == "four_arm_signal|G1|1#1" and "daily quota" in run["message"]
+    assert agent_eval.Store(tmp_path).rate_limited == store.rate_limited  # saved to disk
+
+
+def test_agent_stage_moves_old_rate_limited_runs_aside(tmp_path, limiter):
+    cfg = get_config()
+    store = agent_eval.Store(tmp_path)
+    store.save_agent_run("four_arm_signal|G1|1", {"stop_reason": "agent_finished"})
+    store.save_agent_run("four_arm_signal|G1|2", {"stop_reason": "rate_limited"})
+    agent_eval.run_agent_stage(
+        client([text_turn(), text_turn()]),
+        cfg,
+        store,
+        fake_outcome,
+        limiter,
+        progress=lambda _m: None,
+        pause_s=0,
+        summary_simulator=fake_summary,
+        max_runs=1,
+        sleep=lambda _s: None,
+    )
+    assert list(store.rate_limited) == ["four_arm_signal|G1|2#1"]
+    assert store.agent_runs["four_arm_signal|G1|2"]["stop_reason"] != "rate_limited"
+
+
+def test_agent_stage_pauses_between_runs(tmp_path, limiter):
+    cfg = get_config()
+    slept = []
+    agent_eval.run_agent_stage(
+        client([text_turn(), text_turn()] * 2),
+        cfg,
+        agent_eval.Store(tmp_path),
+        fake_outcome,
+        limiter,
+        progress=lambda _m: None,
+        summary_simulator=fake_summary,
+        max_runs=2,
+        sleep=slept.append,
+    )
+    assert slept.count(cfg.agent.evaluation.pause_between_runs_s) >= 1
 
 
 # ------------------------------------------------------------------ app

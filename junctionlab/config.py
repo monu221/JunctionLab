@@ -155,6 +155,9 @@ class AgentEvaluation(_Frozen):
     results_dir: Path
     max_parallel_runs: int = Field(gt=0)
     min_free_memory_gb: float = Field(ge=0)
+    rate_limit_waits: int = Field(ge=0)
+    rate_limit_default_wait_s: float = Field(ge=0)
+    pause_between_runs_s: float = Field(ge=0)
 
 
 class Agent(_Frozen):

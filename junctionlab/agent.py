@@ -485,6 +485,7 @@ class AgentResult:
     llm_calls: int
     trace: list[TraceStep]
     message: str = ""
+    rate_limit_waits: int = 0  # 429s waited out and retried (evaluation mode only)
 
     @property
     def changed(self) -> bool:
@@ -827,8 +828,18 @@ def run_agent(
     limiter: AgentLimiter | None = None,
     on_step: Callable[[list[TraceStep]], None] | None = None,
     pause_s: float | None = None,
+    rate_limit_waits: int = 0,
+    default_wait_s: float = 60.0,
+    on_wait: Callable[[float, int], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> AgentResult:
     """Run the loop for one goal. Any provider failure ends it with the best design so far.
+
+    The app passes `rate_limit_waits=0`, so a 429 ends the goal. The evaluation passes a
+    positive number: a 429 then waits for the provider's reported reset (or `default_wait_s`)
+    and repeats the same call, up to that many times per goal. A retried call does not count
+    against the goal's call budget, so a wait does not change what the model gets to do. A
+    per-day quota is never waited out.
 
     Raises only if the scenario cannot be designed or the "before" run fails, since there is
     then no design to return.
@@ -865,6 +876,7 @@ def run_agent(
     calls = 0
     nudged = False
     wait_s = 0.0
+    waits = 0
     stop: StopReason = "llm_budget"
     note = ""
     while calls < max_calls:
@@ -872,7 +884,7 @@ def run_agent(
             stop = "simulation_budget"
             break
         if calls and (delay := max(pause, wait_s)):
-            time.sleep(delay)
+            sleep(delay)
         try:
             limiter.reserve_call()
             calls += 1
@@ -884,8 +896,17 @@ def run_agent(
             )
             continue
         except llm.RateLimited as e:
-            stop, note = "rate_limited", str(e)
-            break
+            if e.daily or waits >= rate_limit_waits:
+                stop, note = "rate_limited", str(e)
+                break
+            waits += 1
+            calls -= 1  # the same call is repeated after the wait
+            delay = e.wait_s if e.wait_s is not None else default_wait_s
+            if on_wait:
+                on_wait(delay, waits)
+            sleep(delay)
+            wait_s = 0.0
+            continue
         except llm.LimitReached as e:
             stop, note = "limit", str(e)
             break
@@ -945,4 +966,5 @@ def run_agent(
         llm_calls=calls,
         trace=bench.trace,
         message=note,
+        rate_limit_waits=waits,
     )

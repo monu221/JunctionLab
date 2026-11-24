@@ -270,6 +270,7 @@ def _trace_line(step) -> str:
 def cmd_agent_eval(args: argparse.Namespace) -> int:
     from junctionlab import agent_eval as ev
     from junctionlab import llm
+    from junctionlab.config import get_config
 
     try:
         if args.stage == "grid":
@@ -278,6 +279,11 @@ def cmd_agent_eval(args: argparse.Namespace) -> int:
             ev.run_baselines()
         elif args.stage == "agent":
             print(f"Agent runs completed now: {ev.run_agent_stage(max_runs=args.max_runs)}")
+            cfg = get_config()
+            missing = ev.missing_agent_runs(ev.Store(cfg.agent.evaluation.results_dir), cfg)
+            print(f"Agent runs still missing: {len(missing)}")
+            if missing:
+                return 4
         else:
             print(f"Report written: {ev.write_report()}")
     except ev.MemoryLow as e:
