@@ -110,7 +110,7 @@ Recorded 2026-11-18, from the question round on the original plan.
   - `propose_change` takes cycle, plan and greens together, because a cycle or plan change alone would break the rule that greens and intergreens add up to the cycle. Without greens, a new cycle or plan gets Webster splits.
   - `simulate` and `compare` take design ids, so the model never handles a scenario. Python keeps the budget, the goal check and the choice of the best design.
   - A LOS goal is **met** only if every approach meets it in every seed. A design that meets it on the mean only is **borderline**.
-  - A 429 ends the goal with the best design so far and is not retried. Live testing showed the free tier cutting a goal off after 5 of 8 runs, so the agent now waits for Groq's reported token budget before the next call. **Proposed, please confirm:** 2 s between calls, and a wait when fewer than 1.5 times the last call's tokens remain.
+  - A 429 ends the goal with the best design so far and is not retried. Live testing showed the free tier cutting a goal off after 5 of 8 runs, so the agent now waits for Groq's reported token budget before the next call. Confirmed by the user: 2 s between calls, and a wait when fewer than 1.5 times the last call's tokens remain.
   - The evaluation's T-junction is a signalised copy of the priority example, with the same demand and geometry. It is not a bundled example.
   - Evaluation search space: cycles of 40–120 s, shared by the agent, grid and random search. Webster's cycle for the T-junction (38.3 s) is held to the 40 s minimum.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.

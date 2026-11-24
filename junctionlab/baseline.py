@@ -71,7 +71,11 @@ def write_baseline_routes(scenario: Scenario, out_dir: Path, cfg: Config) -> Pat
 
 
 def measure_baseline(
-    scenario: Scenario, out_dir: Path, config: Config | None = None, seeds: list[int] | None = None
+    scenario: Scenario,
+    out_dir: Path,
+    config: Config | None = None,
+    seeds: list[int] | None = None,
+    max_workers: int | None = None,
 ) -> Baseline:
     """Mean timeLoss + departDelay per approach and movement over all seeds."""
     cfg = config or get_config()
@@ -103,7 +107,7 @@ def measure_baseline(
             out.append((arm, movement, float(t.get("timeLoss")) + float(t.get("departDelay"))))
         return out
 
-    with ThreadPoolExecutor(max_workers=len(seeds)) as pool:
+    with ThreadPoolExecutor(max_workers=min(max_workers or len(seeds), len(seeds))) as pool:
         rows = [row for result in pool.map(one, seeds) for row in result]
 
     baseline: Baseline = {}

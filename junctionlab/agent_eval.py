@@ -13,9 +13,11 @@ Stages, each resumable because every result is saved as it is produced:
 
 from __future__ import annotations
 
+import ctypes
 import json
 import random
 import statistics
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -195,8 +197,58 @@ class Store:
         self._write("agent_runs.json", self.agent_runs)
 
 
+class MemoryLow(RuntimeError):
+    """Free memory is below the configured minimum. Saved results are kept."""
+
+
+class _MemoryStatus(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def available_memory_gb() -> float | None:
+    """Available physical memory, or None if this system does not report it."""
+    if sys.platform == "win32":
+        status = _MemoryStatus()
+        status.dwLength = ctypes.sizeof(status)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return status.ullAvailPhys / 1024**3
+        return None
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) / 1024**2
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def check_memory(cfg: Config, available: Callable[[], float | None] = available_memory_gb) -> None:
+    free = available()
+    minimum = cfg.agent.evaluation.min_free_memory_gb
+    if free is not None and free < minimum:
+        raise MemoryLow(
+            f"Stopped cleanly: {free:.1f} GB of memory is free, below the {minimum:g} GB minimum. "
+            "All finished results are saved."
+        )
+
+
 def real_simulator(cfg: Config) -> Simulator:
-    return lambda s, seeds: Outcome.from_summary(agent.simulate_summary(s, seeds, cfg))
+    def simulate(s: Scenario, seeds: list[int]) -> Outcome:
+        check_memory(cfg)
+        workers = cfg.agent.evaluation.max_parallel_runs
+        return Outcome.from_summary(agent.simulate_summary(s, seeds, cfg, workers))
+
+    return simulate
 
 
 def _train(cfg: Config) -> list[int]:
@@ -283,16 +335,19 @@ def run_agent_stage(
     progress: Callable[[str], None] = print,
     pause_s: float | None = None,
     summary_simulator: agent.Simulate | None = None,
+    max_runs: int | None = None,
 ) -> int:
-    """Run missing agent cases. Stops before a case that the daily limit might cut short, and
-    at the first 429. A stopped run is saved as stopped, and is not retried."""
+    """Run missing agent cases, at most `max_runs` of them. Stops before a case that the daily
+    limit might cut short, and at the first 429. A stopped run is saved as stopped, and is not
+    retried."""
     cfg = config or get_config()
     store = store or Store(cfg.agent.evaluation.results_dir)
     simulator = simulator or real_simulator(cfg)
     limiter = limiter or agent.AgentLimiter(cfg)
     client = client or llm.make_client()
     train = _train(cfg)
-    simulate = summary_simulator or (lambda d: agent.simulate_summary(d, train, cfg))
+    workers = cfg.agent.evaluation.max_parallel_runs
+    simulate = summary_simulator or (lambda d: agent.simulate_summary(d, train, cfg, workers))
     done = 0
     for junction, s in junctions(cfg).items():
         for name, goal in GOALS.items():
@@ -300,6 +355,8 @@ def run_agent_stage(
                 key = _agent_key(junction, name, repeat)
                 if key in store.agent_runs:
                     continue
+                if summary_simulator is None:
+                    check_memory(cfg)
                 if limiter.remaining_today() < cfg.agent.max_llm_calls_per_goal - 1:
                     progress("Daily agent limit is near. Run this stage again tomorrow.")
                     return done
@@ -330,6 +387,8 @@ def run_agent_stage(
                 progress(f"{key}: {result.status}, {result.runs_used} runs, {result.stop_reason}")
                 if result.stop_reason == "rate_limited":
                     progress(f"Stopped by the rate limit. {result.message}")
+                    return done
+                if max_runs is not None and done >= max_runs:
                     return done
     return done
 

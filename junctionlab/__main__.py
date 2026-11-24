@@ -277,9 +277,12 @@ def cmd_agent_eval(args: argparse.Namespace) -> int:
         elif args.stage == "baselines":
             ev.run_baselines()
         elif args.stage == "agent":
-            print(f"Agent runs completed now: {ev.run_agent_stage()}")
+            print(f"Agent runs completed now: {ev.run_agent_stage(max_runs=args.max_runs)}")
         else:
             print(f"Report written: {ev.write_report()}")
+    except ev.MemoryLow as e:
+        print(e)
+        return 5
     except (llm.LlmError, ValueError) as e:
         print(e)
         return 3
@@ -326,6 +329,9 @@ def main(argv: list[str] | None = None) -> int:
     design.set_defaults(func=cmd_agent)
     evaluate = sub.add_parser("agent-eval", help="evaluate the agent against baselines")
     evaluate.add_argument("stage", choices=["grid", "baselines", "agent", "report"])
+    evaluate.add_argument(
+        "--max-runs", type=int, help="agent stage: run at most this many cases, then stop"
+    )
     evaluate.set_defaults(func=cmd_agent_eval)
     args = parser.parse_args(argv)
     # Model notes can hold characters a Windows console cannot encode.

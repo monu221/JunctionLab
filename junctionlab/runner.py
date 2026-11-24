@@ -272,11 +272,14 @@ def run_scenario(
     config: Config | None = None,
     parallel: bool = True,
     on_progress: Callable[[str, int | None], None] | None = None,
+    max_workers: int | None = None,
 ) -> RunResult:
     """Build the SUMO files and run every seed. Results land in run_dir/seed_<n>/.
 
     `on_progress(step, seed)` is called with step "baseline", "seed_started", "seed_done" or
-    "summary". Seeds run in worker threads, so the callback must be thread-safe.
+    "summary". Seeds run in worker threads, so the callback must be thread-safe. `max_workers`
+    limits how many SUMO processes run at once (default: one per seed); results do not depend
+    on it, because each seed is its own run.
 
     Raises UnconfirmedDemand if the model's reading of the demand is not confirmed yet.
     """
@@ -287,7 +290,8 @@ def run_scenario(
     seeds = list(seeds or cfg.simulation.seeds)
     report("baseline", None)
     files = prepare(scenario, run_dir, cfg)
-    baseline = measure_baseline(scenario, run_dir / "free_flow", cfg, seeds)
+    workers = min(max_workers or len(seeds), len(seeds))
+    baseline = measure_baseline(scenario, run_dir / "free_flow", cfg, seeds, workers)
 
     def one(seed: int) -> SeedResult:
         report("seed_started", seed)
@@ -295,8 +299,8 @@ def run_scenario(
         report("seed_done", seed)
         return result
 
-    if parallel and len(seeds) > 1:
-        with ThreadPoolExecutor(max_workers=len(seeds)) as pool:
+    if parallel and workers > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
             results = list(pool.map(one, seeds))
     else:
         results = [one(s) for s in seeds]

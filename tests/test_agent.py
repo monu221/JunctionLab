@@ -370,6 +370,30 @@ def test_random_search_is_reproducible_and_valid():
     assert all(d.approaches == s.approaches for d in a)
 
 
+def test_low_memory_stops_before_a_simulation():
+    cfg = get_config()
+    with pytest.raises(agent_eval.MemoryLow, match="Stopped cleanly"):
+        agent_eval.check_memory(cfg, lambda: cfg.agent.evaluation.min_free_memory_gb - 0.1)
+    agent_eval.check_memory(cfg, lambda: cfg.agent.evaluation.min_free_memory_gb + 0.1)
+    agent_eval.check_memory(cfg, lambda: None)  # a system that does not report memory
+
+
+def test_parallel_runs_are_limited(monkeypatch):
+    seen = {}
+
+    class Done:
+        summary = fake_summary(base())
+
+    def fake_run(_s, _dir, **kw):
+        seen.update(kw)
+        return Done
+
+    monkeypatch.setattr(agent, "run_scenario", fake_run)
+    monkeypatch.setattr(agent_eval, "check_memory", lambda _cfg: None)
+    agent_eval.real_simulator(get_config())(base(), [1, 2, 3, 4, 5])
+    assert seen["max_workers"] == get_config().agent.evaluation.max_parallel_runs == 3
+
+
 def test_report_needs_every_agent_run(tmp_path):
     store = agent_eval.Store(tmp_path)
     with pytest.raises(ValueError, match="agent run"):
@@ -400,6 +424,24 @@ def test_report_compares_all_methods(tmp_path, limiter):
     for text in ("Agent", "Webster", "Random search", "Grid optimum", "Unused seeds"):
         assert text in report
     assert report.count("### G1") == 2
+
+
+def test_agent_stage_respects_max_runs(tmp_path, limiter):
+    cfg = get_config()
+    store = agent_eval.Store(tmp_path)
+    turns = [text_turn(), text_turn()] * 2
+    done = agent_eval.run_agent_stage(
+        client(turns),
+        cfg,
+        store,
+        fake_outcome,
+        limiter,
+        progress=lambda _m: None,
+        pause_s=0,
+        summary_simulator=fake_summary,
+        max_runs=2,
+    )
+    assert done == len(store.agent_runs) == 2
 
 
 def test_agent_stage_saves_a_rate_limited_run_and_stops(tmp_path, limiter):

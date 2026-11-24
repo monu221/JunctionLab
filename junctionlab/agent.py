@@ -795,11 +795,17 @@ def _chat_anthropic(messages: list[dict[str, Any]], client: anthropic.Anthropic,
 
 
 def simulate_summary(
-    scenario: Scenario, seeds: list[int] | None = None, config: Config | None = None
+    scenario: Scenario,
+    seeds: list[int] | None = None,
+    config: Config | None = None,
+    max_workers: int | None = None,
 ) -> Summary:
     """One run through the existing facade, in a temporary folder."""
     with tempfile.TemporaryDirectory(prefix="junctionlab-", ignore_cleanup_errors=True) as tmp:
-        return run_scenario(scenario, Path(tmp) / "run", seeds=seeds, config=config).summary
+        run_dir = Path(tmp) / "run"
+        return run_scenario(
+            scenario, run_dir, seeds=seeds, config=config, max_workers=max_workers
+        ).summary
 
 
 def start_goal(session: AgentSession, config: Config | None = None) -> None:

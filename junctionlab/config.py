@@ -153,6 +153,8 @@ class AgentEvaluation(_Frozen):
     repeats: int = Field(gt=0)
     random_designs: int = Field(gt=0)
     results_dir: Path
+    max_parallel_runs: int = Field(gt=0)
+    min_free_memory_gb: float = Field(ge=0)
 
 
 class Agent(_Frozen):

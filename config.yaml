@@ -97,7 +97,7 @@ agent:
   llm_calls_per_day: 150             # confirmed 2026-11-23; separate from llm.calls_per_day
   counter_file: var/agent_calls.json # daily count (UTC date); relative to the repo root
   max_goal_chars: 300
-  pause_between_calls_s: 2           # proposed: spreads calls over the tokens-per-minute limit
+  pause_between_calls_s: 2           # confirmed 2026-11-23; spreads calls over the token limit
   # Search space, shared by the agent, the grid and random search so results are comparable.
   cycle_min_s: 40
   cycle_max_s: 120
@@ -108,3 +108,5 @@ agent:
     repeats: 3
     random_designs: 8
     results_dir: var/agent_eval      # resumable; relative to the repo root
+    max_parallel_runs: 3             # SUMO processes at once; set by the user on 2026-11-23
+    min_free_memory_gb: 2.0          # proposed: stop cleanly before a simulation below this
