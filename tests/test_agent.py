@@ -535,6 +535,43 @@ def test_agent_stage_keeps_a_run_ended_by_a_429_out_of_the_results(tmp_path, lim
     assert agent_eval.Store(tmp_path).rate_limited == store.rate_limited  # saved to disk
 
 
+def stage_output(tmp_path, limiter, turns):
+    printed = []
+    agent_eval.run_agent_stage(
+        client(turns),
+        get_config(),
+        agent_eval.Store(tmp_path),
+        fake_outcome,
+        limiter,
+        progress=printed.append,
+        pause_s=0,
+        summary_simulator=fake_summary,
+        max_runs=1,
+        sleep=lambda _s: None,
+    )
+    return printed
+
+
+def test_agent_stage_daily_quota_says_only_when_to_resume(tmp_path, limiter):
+    printed = stage_output(tmp_path, limiter, [DAILY])
+    assert printed[-1] == (
+        "Stopped. The free Groq tier's daily quota is used up. "
+        "Run this stage again in about 10 min."
+    )
+    assert not any("form" in line or "waiting" in line for line in printed)
+
+
+def test_agent_stage_per_minute_429_says_it_is_waiting(tmp_path, limiter):
+    turns = [tool_turn(propose(60), simulate("D1")), RATE_LIMITED, text_turn(), text_turn()]
+    printed = stage_output(tmp_path, limiter, turns)
+    waits = get_config().agent.evaluation.rate_limit_waits
+    assert printed[1] == (
+        "four_arm_signal|G1|1: the free Groq tier's per-minute rate limit is reached; "
+        f"waiting 15 s (wait 1 of {waits})."
+    )
+    assert not any("form" in line or "Stopped" in line for line in printed)
+
+
 def test_agent_stage_moves_old_rate_limited_runs_aside(tmp_path, limiter):
     cfg = get_config()
     store = agent_eval.Store(tmp_path)

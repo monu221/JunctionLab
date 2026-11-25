@@ -345,6 +345,38 @@ def _agent_key(junction: str, goal: str, repeat: int) -> str:
     return f"{junction}|{goal}|{repeat}"
 
 
+def _about(seconds: float) -> str:
+    if seconds < 90:
+        return f"about {max(1, round(seconds))} s"
+    if seconds < 5400:
+        return f"about {round(seconds / 60)} min"
+    return f"about {round(seconds / 3600)} h"
+
+
+def waiting_message(wait_s: float, wait: int, ev: Any) -> str:
+    """A per-minute 429 that the evaluation waits out. Not the app's message: nothing here
+    can be edited in a form."""
+    return (
+        f"the free Groq tier's per-minute rate limit is reached; waiting {wait_s:.0f} s "
+        f"(wait {wait} of {ev.rate_limit_waits})."
+    )
+
+
+def stop_message(e: llm.RateLimited, waits: int) -> str:
+    """Why a 429 ended the stage, and when to run it again."""
+    when = (
+        f"Run this stage again in {_about(e.wait_s)}."
+        if e.wait_s is not None
+        else "Run this stage again later."
+    )
+    if e.daily:
+        return f"The free Groq tier's daily quota is used up. {when}"
+    return (
+        f"The free Groq tier's per-minute rate limit was still reached after {waits} "
+        f"wait(s). {when}"
+    )
+
+
 def run_agent_stage(
     client: llm.LlmClient | None = None,
     config: Config | None = None,
@@ -400,7 +432,7 @@ def run_agent_stage(
                     pause_s=pause_s,
                     rate_limit_waits=ev.rate_limit_waits,
                     default_wait_s=ev.rate_limit_default_wait_s,
-                    on_wait=lambda s_, n, k=key: progress(f"{k}: 429, waiting {s_:.0f} s ({n})"),
+                    on_wait=lambda s_, n, k=key: progress(f"{k}: {waiting_message(s_, n, ev)}"),
                     sleep=sleep,
                 )
                 record = {
@@ -414,11 +446,16 @@ def run_agent_stage(
                     "rate_limit_waits": result.rate_limit_waits,
                 }
                 if result.stop_reason == "rate_limited":
-                    record["message"] = result.message
+                    message = (
+                        stop_message(result.rate_limit, result.rate_limit_waits)
+                        if result.rate_limit
+                        else result.message
+                    )
+                    record["message"] = message
                     record["date"] = datetime.now(UTC).date().isoformat()
                     store.save_rate_limited(key, record)
                     progress(f"{key}: ended by the rate limit, not saved as a result.")
-                    progress(f"Stopped. {result.message}")
+                    progress(f"Stopped. {message}")
                     return done
                 store.outcomes[_key(junction, result.best, train)] = result.best_outcome.to_dict()
                 store._write("outcomes.json", store.outcomes)

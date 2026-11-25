@@ -486,6 +486,7 @@ class AgentResult:
     trace: list[TraceStep]
     message: str = ""
     rate_limit_waits: int = 0  # 429s waited out and retried (evaluation mode only)
+    rate_limit: llm.RateLimited | None = None  # the 429 that ended the goal, if one did
 
     @property
     def changed(self) -> bool:
@@ -879,6 +880,7 @@ def run_agent(
     waits = 0
     stop: StopReason = "llm_budget"
     note = ""
+    ended_by: llm.RateLimited | None = None
     while calls < max_calls:
         if bench.budget_used:
             stop = "simulation_budget"
@@ -897,7 +899,7 @@ def run_agent(
             continue
         except llm.RateLimited as e:
             if e.daily or waits >= rate_limit_waits:
-                stop, note = "rate_limited", str(e)
+                stop, note, ended_by = "rate_limited", str(e), e
                 break
             waits += 1
             calls -= 1  # the same call is repeated after the wait
@@ -967,4 +969,5 @@ def run_agent(
         trace=bench.trace,
         message=note,
         rate_limit_waits=waits,
+        rate_limit=ended_by,
     )
