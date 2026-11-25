@@ -285,7 +285,7 @@ def cmd_agent_eval(args: argparse.Namespace) -> int:
             if missing:
                 return 4
         else:
-            print(f"Report written: {ev.write_report()}")
+            print(f"Report written: {ev.write_report(preliminary=args.preliminary)}")
     except ev.MemoryLow as e:
         print(e)
         return 5
@@ -337,6 +337,11 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("stage", choices=["grid", "baselines", "agent", "report"])
     evaluate.add_argument(
         "--max-runs", type=int, help="agent stage: run at most this many cases, then stop"
+    )
+    evaluate.add_argument(
+        "--preliminary",
+        action="store_true",
+        help="report stage: write the report with the agent runs saved so far",
     )
     evaluate.set_defaults(func=cmd_agent_eval)
     args = parser.parse_args(argv)

@@ -453,7 +453,8 @@ def _spread(goal: Goal, values: list[float]) -> str:
     mid = statistics.median(values)
     if len(values) == 1 or min(values) == max(values):
         return _value_text(goal, mid)
-    return f"{_value_text(goal, mid)} ({min(values):.1f}–{max(values):.1f})"
+    digits = 0 if goal.objective == "shortest_cycle" else 1
+    return f"{_value_text(goal, mid)} ({min(values):.{digits}f}–{max(values):.{digits}f})"
 
 
 def _status_text(statuses: list[str]) -> str:
@@ -500,19 +501,30 @@ def missing_agent_runs(store: Store, cfg: Config) -> list[str]:
 
 
 def build_report(
-    config: Config | None = None, store: Store | None = None, simulator: Simulator | None = None
+    config: Config | None = None,
+    store: Store | None = None,
+    simulator: Simulator | None = None,
+    preliminary: bool = False,
 ) -> str:
-    """The evaluation as Markdown. Raises ValueError if any agent case has not been run."""
+    """The evaluation as Markdown. Raises ValueError if any agent case has not been run, unless
+    `preliminary`: the report is then marked as such and uses the agent runs saved so far."""
     cfg = config or get_config()
     store = store or Store(cfg.agent.evaluation.results_dir)
     simulator = simulator or real_simulator(cfg)
     missing = missing_agent_runs(store, cfg)
-    if missing:
+    if missing and not preliminary:
         raise ValueError(f"{len(missing)} agent run(s) missing, for example {missing[0]}")
     n = cfg.agent.evaluation.repeats
-    lines = [
-        "# Signal-design agent: evaluation",
-        "",
+    total = len(JUNCTION_LABELS) * len(GOALS) * n
+    lines = ["# Signal-design agent: evaluation", ""]
+    if missing:
+        lines += [
+            f"> **Preliminary, {total - len(missing)} of {total} agent runs.** The other agent "
+            "runs wait for the free tier's daily quota. Webster, random search and the grid "
+            "are complete.",
+            "",
+        ]
+    lines += [
         f"Each method chose its best design on seeds {_train(cfg)}. **Unused seeds** re-runs "
         f"that design on seeds {_holdout(cfg)}, and **Goal** is judged there: met means every "
         "approach in every seed, borderline means on the mean only. Repeated methods show the "
@@ -523,20 +535,26 @@ def build_report(
         lines += [f"## {JUNCTION_LABELS[junction]}", ""]
         grid = grid_designs(s, cfg)
         for name, goal in GOALS.items():
-            agent_runs = [store.agent_runs[_agent_key(junction, name, r)] for r in range(1, n + 1)]
+            keys = [_agent_key(junction, name, r) for r in range(1, n + 1)]
+            agent_runs = [store.agent_runs[k] for k in keys if k in store.agent_runs]
             agent_designs = [
                 agent.apply_change(s, r["cycle_s"], r["plan"], r["green_s"], cfg)
                 for r in agent_runs
             ]
-            used = statistics.fmean(r["runs_used"] for r in agent_runs)
-            found = statistics.fmean(r["best_at_run"] for r in agent_runs)
-            agent_text = f"{used:.1f} (best at run {found:.1f})"
+            if agent_runs:
+                used = statistics.fmean(r["runs_used"] for r in agent_runs)
+                found = statistics.fmean(r["best_at_run"] for r in agent_runs)
+                agent_text = f"{used:.1f} (best at run {found:.1f})"
+                if len(agent_runs) < n:
+                    agent_text += f"; {len(agent_runs)} of {n} repeats"
             randoms = [
                 _best(goal, junction, designs, store, simulator, cfg)
                 for designs in _random_sets(junction, s, cfg)
             ]
             rows = [
-                _row("Agent", goal, junction, agent_designs, agent_text, store, simulator, cfg),
+                _row("Agent", goal, junction, agent_designs, agent_text, store, simulator, cfg)
+                if agent_runs
+                else MethodRow("Agent", "not run yet", "–", "–", f"0 of {n} repeats"),
                 _row(
                     "Webster",
                     goal,
@@ -582,17 +600,30 @@ def build_report(
 
 def _free_tier_note(store: Store) -> list[str]:
     """How often the free tier's rate limit got in the way. Not an agent result."""
-    ended = len(store.rate_limited)
+    ended = list(store.rate_limited.values())
+    daily = sum("daily quota" in r.get("message", "") for r in ended)
+    unknown = sum("message" not in r for r in ended)
     waits = sum(r.get("rate_limit_waits", 0) for r in store.agent_runs.values())
     runs_waited = sum(bool(r.get("rate_limit_waits")) for r in store.agent_runs.values())
+    kinds = f"{daily} of them by the daily token quota"
+    if unknown:
+        kinds += (
+            f"; {unknown} were recorded before the kind of limit was saved, so for those it is "
+            "not known"
+        )
     return [
         "## Note on the free tier",
         "",
-        f"A 429 from Groq's free tier ended {ended} agent run(s) early. Those runs were set "
-        "aside and run again from the start; they are not in the tables above. Of the runs "
-        f"that are, {runs_waited} waited for the rate limit to reset ({waits} wait(s) in "
-        "total) and then continued the same run. A wait does not change what the model sees "
-        "or how many calls it gets.",
+        f"A 429 from Groq's free tier ended {len(ended)} agent run(s) early ({kinds}). Those "
+        "runs were set aside and run again from the start; they are not in the tables above. "
+        + (
+            f"Of the runs that are, {runs_waited} waited for a per-minute limit to reset "
+            f"({waits} wait(s) in total) and then continued the same run. "
+            if waits
+            else "None of the runs in the tables needed a wait for a per-minute limit. "
+        )
+        + "A wait, when one happens, does not change what the model sees or how many calls it "
+        "gets. The daily quota is not waited out: the stage stops and resumes on a later day.",
         "",
     ]
 
@@ -601,9 +632,9 @@ SUMMARY_START = "<!-- summary -->"
 SUMMARY_END = "<!-- /summary -->"
 
 
-def write_report(config: Config | None = None) -> Path:
+def write_report(config: Config | None = None, preliminary: bool = False) -> Path:
     """Write the report, keeping the hand-written summary of an earlier report, if any."""
-    report = build_report(config)
+    report = build_report(config, preliminary=preliminary)
     old = REPORT_PATH.read_text(encoding="utf-8") if REPORT_PATH.is_file() else ""
     if SUMMARY_START in old and SUMMARY_END in old:
         summary = old[old.index(SUMMARY_START) : old.index(SUMMARY_END) + len(SUMMARY_END)]

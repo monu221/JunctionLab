@@ -443,6 +443,32 @@ def test_report_needs_every_agent_run(tmp_path):
         agent_eval.build_report(store=store, simulator=fake_outcome)
 
 
+def test_preliminary_report_uses_the_agent_runs_saved_so_far(tmp_path, limiter):
+    cfg = get_config()
+    store = agent_eval.Store(tmp_path)
+    agent_eval.run_grid(cfg, store, fake_outcome, progress=lambda _m: None)
+    agent_eval.run_baselines(cfg, store, fake_outcome, progress=lambda _m: None)
+    agent_eval.run_agent_stage(
+        client([text_turn(), text_turn()]),
+        cfg,
+        store,
+        fake_outcome,
+        limiter,
+        progress=lambda _m: None,
+        pause_s=0,
+        summary_simulator=fake_summary,
+        max_runs=1,
+    )
+    store.save_rate_limited("four_arm_signal|G1|2", {"stop_reason": "rate_limited"})
+    store.save_rate_limited(
+        "four_arm_signal|G1|2", {"stop_reason": "rate_limited", "message": "daily quota is used"}
+    )
+    report = agent_eval.build_report(cfg, store, fake_outcome, preliminary=True)
+    assert "Preliminary, 1 of 18 agent runs" in report
+    assert "1 of 3 repeats" in report and "not run yet" in report
+    assert "ended 2 agent run(s) early (1 of them by the daily token quota; 1 were" in report
+
+
 def test_report_compares_all_methods(tmp_path, limiter):
     cfg = get_config()
     store = agent_eval.Store(tmp_path)
