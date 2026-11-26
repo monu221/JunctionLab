@@ -1,0 +1,3 @@
+# Streamlit Community Cloud installs from this file. The dependencies are listed in
+# pyproject.toml; the editable install keeps config.yaml and examples/ next to the package.
+-e .

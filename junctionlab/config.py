@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import sys
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import Literal
@@ -13,6 +15,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config.yaml"
 LOS_GRADES = ("A", "B", "C", "D", "E")
+# Deployment setting (Streamlit secret or environment variable) that overrides
+# simulation.max_parallel_runs.
+PARALLEL_RUNS_SETTING = "JUNCTIONLAB_MAX_PARALLEL_RUNS"
 
 
 class _Frozen(BaseModel):
@@ -33,6 +38,7 @@ class Simulation(_Frozen):
     time_to_teleport_s: int
     step_length_s: float = Field(gt=0)
     gridlock_stop_s: float = Field(gt=0)
+    max_parallel_runs: int = Field(gt=0)
 
     @property
     def end_s(self) -> int:
@@ -194,7 +200,40 @@ def load_config(path: Path | str | None = None) -> Config:
         return Config.model_validate(yaml.safe_load(f))
 
 
+def setting(name: str) -> str | None:
+    """A deployment setting: a Streamlit secret when the app is running, else the environment.
+
+    Streamlit is only asked when it is already imported, so the command line never loads it.
+    """
+    st = sys.modules.get("streamlit")
+    if st is not None:
+        try:
+            value = st.secrets.get(name)
+            if value is not None and str(value) != "":
+                return str(value)
+        except Exception:  # no secrets file, or not running in an app
+            pass
+    return os.environ.get(name) or None
+
+
+def with_settings(cfg: Config, lookup: Callable[[str], str | None] = setting) -> Config:
+    """The config with deployment settings applied (only the number of parallel SUMO runs)."""
+    raw = lookup(PARALLEL_RUNS_SETTING)
+    if raw is None:
+        return cfg
+    try:
+        runs = int(raw)
+    except ValueError:
+        runs = 0
+    if runs < 1:
+        raise ValueError(
+            f"{PARALLEL_RUNS_SETTING} must be a whole number of at least 1, not {raw!r}"
+        )
+    simulation = cfg.simulation.model_copy(update={"max_parallel_runs": runs})
+    return cfg.model_copy(update={"simulation": simulation})
+
+
 @cache
 def get_config() -> Config:
-    """The default config, loaded once."""
-    return load_config()
+    """The default config with deployment settings applied, loaded once."""
+    return with_settings(load_config())

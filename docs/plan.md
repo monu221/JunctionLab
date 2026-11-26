@@ -116,9 +116,11 @@ Recorded 2026-11-18, from the question round on the original plan.
   - Evaluation search space: cycles of 40–120 s, shared by the agent, grid and random search. Webster's cycle for the T-junction (38.3 s) is held to the 40 s minimum.
 - **Backlog rule threshold:** "the insertion backlog keeps growing" means it grows by at least 5 vehicles from the start to the end of the measurement period. Confirmed after M3.
 - **Throughput is counted at stop-line E1 loops,** not from tripinfo, because tripinfo cannot show when a vehicle crossed the junction (M3).
+- **Parallel SUMO runs** (set by the user on 2026-11-27): a run in the app or the command line starts at most `simulation.max_parallel_runs` SUMO processes. Locally this is 5, one per seed, as before. A deployment overrides it with the `JUNCTIONLAB_MAX_PARALLEL_RUNS` Streamlit secret or environment variable: 2 on Streamlit Community Cloud, which has 2 cores. The evaluation keeps its own `agent.evaluation.max_parallel_runs`.
 
 ## Roadmap (after v1)
 
+- Agent seeded with Webster's design
 - Protected left-turn phases
 - HBS level-of-service thresholds
 - Items listed as out of scope in the product brief

@@ -127,15 +127,22 @@ def test_free_limit_message_points_to_the_examples(monkeypatch):
     assert "Free limit reached" in message and "examples" in message and "7 s" in message
 
 
-def test_run_shows_results():
+@pytest.mark.parametrize("key", list(EXAMPLES))
+def test_each_example_runs_with_no_api_call(key, monkeypatch):
+    def no_call(*_args, **_kwargs):
+        raise AssertionError("an example must not call the API")
+
+    for name in ("api_key", "make_client", "interpret"):
+        monkeypatch.setattr(llm, name, no_call)
     at = app()
-    button(at, "example_t_junction_priority").click().run()
+    button(at, f"example_{key}").click().run()
     button(at, "run").click().run()
     assert not at.exception
     assert at.session_state["result"] is not None
     assert [m.label for m in at.metric][:2] == ["Junction LOS", "Control delay"]
     assert len(at.dataframe) == 1
-    assert len(at.dataframe[0].value) == 3
+    approaches = at.session_state["scenario"].approaches
+    assert len(at.dataframe[0].value) == len(approaches)
 
 
 def test_successful_run_clears_an_earlier_failure():

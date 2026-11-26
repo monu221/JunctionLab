@@ -4,7 +4,13 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from junctionlab.config import DEFAULT_CONFIG_PATH, load_config
+from junctionlab.config import (
+    DEFAULT_CONFIG_PATH,
+    PARALLEL_RUNS_SETTING,
+    load_config,
+    setting,
+    with_settings,
+)
 
 
 def test_repo_config_loads_with_decided_values():
@@ -54,3 +60,32 @@ def test_env_var_overrides_default_path(tmp_path, monkeypatch):
     path = _write(tmp_path, lambda d: d["geometry"].update(approach_length_m=450))
     monkeypatch.setenv("JUNCTIONLAB_CONFIG", str(path))
     assert load_config().geometry.approach_length_m == 450
+
+
+def test_parallel_runs_default_is_one_per_seed():
+    cfg = load_config()
+    assert cfg.simulation.max_parallel_runs == len(cfg.simulation.seeds)
+
+
+def test_deployment_setting_overrides_parallel_runs():
+    cfg = load_config()
+    settings = {PARALLEL_RUNS_SETTING: "2"}
+    changed = with_settings(cfg, settings.get)
+    assert changed.simulation.max_parallel_runs == 2
+    assert changed.simulation.seeds == cfg.simulation.seeds
+    # The evaluation keeps its own value.
+    assert changed.agent.evaluation.max_parallel_runs == cfg.agent.evaluation.max_parallel_runs
+    assert with_settings(cfg, {}.get) == cfg
+
+
+@pytest.mark.parametrize("raw", ["0", "-1", "two", "1.5"])
+def test_invalid_parallel_runs_setting_is_rejected(raw):
+    with pytest.raises(ValueError, match=PARALLEL_RUNS_SETTING):
+        with_settings(load_config(), {PARALLEL_RUNS_SETTING: raw}.get)
+
+
+def test_setting_reads_the_environment(monkeypatch):
+    monkeypatch.setenv(PARALLEL_RUNS_SETTING, "3")
+    assert setting(PARALLEL_RUNS_SETTING) == "3"
+    monkeypatch.delenv(PARALLEL_RUNS_SETTING)
+    assert setting(PARALLEL_RUNS_SETTING) is None

@@ -1,0 +1,6 @@
+libgl1
+libx11-6
+libxext6
+libxrender1
+libexpat1
+libatomic1

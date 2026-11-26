@@ -15,6 +15,10 @@ simulation:
   time_to_teleport_s: -1        # teleports disabled
   step_length_s: 1.0            # SUMO default; report Webster issues before changing it
   gridlock_stop_s: 300          # warn when any vehicle has been stopped longer than this
+  # SUMO processes at once for one run in the app or the command line: 5 = one per seed.
+  # A deployment sets its own value with the JUNCTIONLAB_MAX_PARALLEL_RUNS Streamlit secret
+  # or environment variable (2 on Streamlit Community Cloud, which has 2 cores).
+  max_parallel_runs: 5
 
 driver:
   car_follow_model: Krauss

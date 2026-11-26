@@ -278,8 +278,8 @@ def run_scenario(
 
     `on_progress(step, seed)` is called with step "baseline", "seed_started", "seed_done" or
     "summary". Seeds run in worker threads, so the callback must be thread-safe. `max_workers`
-    limits how many SUMO processes run at once (default: one per seed); results do not depend
-    on it, because each seed is its own run.
+    limits how many SUMO processes run at once (default: config `simulation.max_parallel_runs`);
+    results do not depend on it, because each seed is its own run.
 
     Raises UnconfirmedDemand if the model's reading of the demand is not confirmed yet.
     """
@@ -290,7 +290,7 @@ def run_scenario(
     seeds = list(seeds or cfg.simulation.seeds)
     report("baseline", None)
     files = prepare(scenario, run_dir, cfg)
-    workers = min(max_workers or len(seeds), len(seeds))
+    workers = min(max_workers or cfg.simulation.max_parallel_runs, len(seeds))
     baseline = measure_baseline(scenario, run_dir / "free_flow", cfg, seeds, workers)
 
     def one(seed: int) -> SeedResult:
