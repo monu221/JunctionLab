@@ -1,5 +1,8 @@
 # JunctionLab
+
 Plain-language junction descriptions to SUMO traffic simulations
+
+![JunctionLab results for the 4-arm signal example: junction LOS, control delay per approach and the junction drawn from the SUMO network](docs/screenshot.png)
 
 See [docs/product-brief.md](docs/product-brief.md), [docs/method.md](docs/method.md) and [docs/plan.md](docs/plan.md).
 
