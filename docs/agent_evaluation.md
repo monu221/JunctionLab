@@ -1,32 +1,36 @@
 # Signal-design agent: evaluation
 
 <!-- summary -->
-## Summary (preliminary, 10 of 18 agent runs)
+## Summary
 
-These conclusions may change once the remaining 8 agent runs (T-junction G1 #2 and #3, G2 and
-G3) are in. All figures below are on the unused seeds.
+All 18 agent runs (2 junctions × 3 goals × 3 repeats) are in. All figures below are on the
+unused seeds.
 
-- **The agent did not beat Webster on any goal so far.** On the 4-arm junction its median is
-  21.9 s/veh for G2 against Webster's 20.1 and the grid's 19.2, and 26.3 s/veh for G3 against
-  24.4 and 22.6. For G1 its median cycle is 60 s, where Webster meets LOS C at 43 s and the
-  grid at 40 s.
-- **G1 (shortest cycle) is its weakest goal.** On the 4-arm junction one of three repeats
-  stopped by itself at a 100 s cycle that is only borderline. On the T-junction, the one
-  repeat so far ended at 75 s, where 40 s (the search-space minimum) already meets the goal.
-- **It is more reliable than random search with the same budget.** With about 8 simulation
-  runs each, random search failed the goal in one of three repeats on every 4-arm goal
-  (for example 209 s/veh in G2), while every agent repeat met the goal except one G1 repeat
-  that was borderline.
-- **The budget rule that ends a run differs by goal.** Two of the three 4-arm G3 runs used all
-  15 LLM calls after 7 of the 8 allowed simulations; their best designs were found at runs
-  2 and 3.
-- **The unused seeds confirm the choices.** No method's ranking changes between the seeds
-  used to choose a design and the unused ones; medians differ by at most about 2 s/veh.
+- **The agent beat Webster on one goal of six: T-junction G2.** There its median is
+  13.3 s/veh against Webster's 14.0, which is still above the grid's 11.2. On all other goals it is
+  behind Webster: 21.9 against 20.1 s/veh (4-arm G2), 26.3 against 24.4 (4-arm G3) and
+  25.5 against 19.5 (T-junction G3). The grid optimum is best everywhere.
+- **G1 (shortest cycle) is its weakest goal.** Its median cycle is 60 s on the 4-arm junction,
+  where Webster meets LOS C at 43 s and the grid at 40 s. One of three repeats stopped by itself
+  at a borderline 100 s cycle. On the T-junction all three repeats ended at 72–75 s, where 40 s
+  (the search-space minimum) already meets the goal.
+- **On T-junction G3 it never improved on its first design.** All three repeats kept the
+  90 s cycle from run 1 (25.5 s/veh, against Webster's 19.5). One stopped by itself after 3 runs,
+  and two used all 15 LLM calls after only 3 and 7 of the 8 allowed simulations.
+- **It is more reliable than random search with the same budget.** With about 8 simulation runs
+  each, random search failed or was borderline in one of three repeats on four of the six goals
+  (for example 209 s/veh in 4-arm G2). Every agent repeat met the goal except one borderline
+  4-arm G1 repeat. Its medians are also below random search's on four of the six goals. The
+  exceptions are the two G1 goals, where random search found shorter cycles.
+- **The LLM-call budget often ends a run before the simulation budget.** This happened in 6 of
+  the 18 runs (2 of 3 for 4-arm G3, T-junction G2 and T-junction G3). They had not used all 8
+  simulations, so more LLM calls per run may help more than more simulations.
+- **The unused seeds confirm the choices.** No method's ranking changes between the seeds used
+  to choose a design and the unused ones. Medians differ by at most 2.8 s/veh, and that largest
+  change is the agent on T-junction G3, which is lower on the unused seeds.
 - Webster's cycle for the T-junction is below the 40 s minimum, so there Webster and the grid
   give the same G1 design by construction.
 <!-- /summary -->
-
-> **Preliminary, 10 of 18 agent runs.** The other agent runs wait for the free tier's daily quota. Webster, random search and the grid are complete.
 
 Each method chose its best design on seeds [1, 2, 3, 4, 5]. **Unused seeds** re-runs that design on seeds [6, 7, 8, 9, 10], and **Goal** is judged there: met means every approach in every seed, borderline means on the mean only. Repeated methods show the median and range over 3 repeats. Runs are simulation runs used to choose a design.
 
@@ -65,7 +69,7 @@ Each method chose its best design on seeds [1, 2, 3, 4, 5]. **Unused seeds** re-
 
 | Method | Best result | Unused seeds | Goal | Runs |
 | --- | --- | --- | --- | --- |
-| Agent | 75 s cycle | 75 s cycle | Met | 8.0 (best at run 6.0); 1 of 3 repeats |
+| Agent | 72 s cycle (72–75) | 72 s cycle (72–75) | 3/3 met | 8.0 (best at run 7.0) |
 | Webster | 40 s cycle | 40 s cycle | Met | 1 |
 | Random search | 50 s cycle (48–102) | 50 s cycle (48–102) | 2/3 met, 1/3 borderline | 8 |
 | Grid optimum | 40 s cycle | 40 s cycle | Met | 150 |
@@ -74,7 +78,7 @@ Each method chose its best design on seeds [1, 2, 3, 4, 5]. **Unused seeds** re-
 
 | Method | Best result | Unused seeds | Goal | Runs |
 | --- | --- | --- | --- | --- |
-| Agent | not run yet | – | – | 0 of 3 repeats |
+| Agent | 14.6 s/veh (14.2–15.4) | 13.3 s/veh (13.0–14.8) | 3/3 met | 7.3 (best at run 5.3) |
 | Webster | 14.9 s/veh | 14.0 s/veh | Met | 1 |
 | Random search | 15.8 s/veh (14.9–17.0) | 15.0 s/veh (12.7–16.1) | 3/3 met | 8 |
 | Grid optimum | 12.8 s/veh | 11.2 s/veh | Met | 150 |
@@ -83,11 +87,11 @@ Each method chose its best design on seeds [1, 2, 3, 4, 5]. **Unused seeds** re-
 
 | Method | Best result | Unused seeds | Goal | Runs |
 | --- | --- | --- | --- | --- |
-| Agent | not run yet | – | – | 0 of 3 repeats |
+| Agent | 28.3 s/veh | 25.5 s/veh | 3/3 met | 4.3 (best at run 1.0) |
 | Webster | 21.4 s/veh | 19.5 s/veh | Met | 1 |
 | Random search | 31.6 s/veh (22.5–36.6) | 31.1 s/veh (20.9–34.0) | 3/3 met | 8 |
 | Grid optimum | 17.6 s/veh | 17.9 s/veh | Met | 150 |
 
 ## Note on the free tier
 
-A 429 from Groq's free tier ended 7 agent run(s) early (2 of them by the daily token quota; 5 were recorded before the kind of limit was saved, so for those it is not known). Those runs were set aside and run again from the start; they are not in the tables above. None of the runs in the tables needed a wait for a per-minute limit. A wait, when one happens, does not change what the model sees or how many calls it gets. The daily quota is not waited out: the stage stops and resumes on a later day.
+A 429 from Groq's free tier ended 9 agent run(s) early (4 of them by the daily token quota; 5 were recorded before the kind of limit was saved, so for those it is not known). Those runs were set aside and run again from the start; they are not in the tables above. None of the runs in the tables needed a wait for a per-minute limit. A wait, when one happens, does not change what the model sees or how many calls it gets. The daily quota is not waited out: the stage stops and resumes on a later day.
